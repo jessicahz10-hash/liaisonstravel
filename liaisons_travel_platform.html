@@ -9,10 +9,8 @@
 :root{--purple:#5B2D8E;--pl:#7B4DB0;--gray:#808080;--gl:#B0B0B0;--bg:#F5F5F5;--dark:#2D2D2D;--w:#FFF;--b:#E0E0E0}
 body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w);color:var(--dark)}
 p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
-.view{display:none}.view.active{display:block}
-#loginView.active{display:flex}
-#deskOverlay{display:none;position:fixed;inset:0;z-index:3000;background:#fff;flex-direction:column}
-#deskOverlay.active{display:flex}
+.view{display:none !important}.view.active{display:block !important}
+#loginView.active{display:flex !important}
 .bp{background:var(--purple);color:#fff;border:none;padding:12px 32px;letter-spacing:.15em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%}
 .bp:hover{background:var(--pl)}
 .bs{background:transparent;color:var(--purple);border:1px solid var(--purple);padding:9px 20px;letter-spacing:.12em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit}
@@ -357,6 +355,7 @@ function sv(id){
   var target=document.getElementById(id);
   console.log('target element:', target);
   if(target) target.classList.add('active');
+  window.scrollTo(0,0);
 }
 function showLogin(){sv('loginView');}
 function logout(){sv('loginView');}
