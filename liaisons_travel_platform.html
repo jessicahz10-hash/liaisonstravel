@@ -348,13 +348,16 @@ function load(){
   }catch(e){}
 }
 function sv(id){
-  console.log('sv called with:', id);
   var views=document.querySelectorAll('.view');
-  console.log('views found:', views.length);
-  for(var i=0;i<views.length;i++) views[i].classList.remove('active');
+  for(var i=0;i<views.length;i++){
+    views[i].classList.remove('active');
+    views[i].style.display='none';
+  }
   var target=document.getElementById(id);
-  console.log('target element:', target);
-  if(target) target.classList.add('active');
+  if(target){
+    target.classList.add('active');
+    target.style.display=(id==='loginView')?'flex':'block';
+  }
   window.scrollTo(0,0);
 }
 function showLogin(){sv('loginView');}
