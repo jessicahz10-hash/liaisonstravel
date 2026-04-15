@@ -7,19 +7,56 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--purple:#5B2D8E;--pl:#7B4DB0;--gray:#808080;--gl:#B0B0B0;--bg:#F5F5F5;--dark:#2D2D2D;--w:#FFF;--b:#E0E0E0}
-body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w);color:var(--dark)}
-p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
-#loginView{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--w);z-index:500}
-#loginView.active{display:flex !important}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w);color:var(--dark);margin:0;padding:0}
+/* APP SHELL - only one thing visible at a time */
+#app{position:relative;width:100%;min-height:100vh}
+.screen{display:none;width:100%;min-height:100vh}
+.screen.on{display:block}
+/* LOGIN */
+#sLogin{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}
+#sLogin.on{display:flex}
+.lbox{text-align:center;padding:56px 36px;max-width:400px;width:100%}
+.lsep{width:36px;height:1px;background:var(--purple);margin:10px auto 36px}
+.lerr{color:#c0392b;font-size:12px;margin-bottom:12px;min-height:16px}
+/* BUTTONS */
 .bp{background:var(--purple);color:#fff;border:none;padding:12px 32px;letter-spacing:.15em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%}
 .bp:hover{background:var(--pl)}
-.bs{background:transparent;color:var(--purple);border:1px solid var(--purple);padding:9px 20px;letter-spacing:.12em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit}
+.bs{background:transparent;color:var(--purple);border:1px solid var(--purple);padding:9px 20px;letter-spacing:.12em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%}
 .bs:hover{background:var(--purple);color:#fff}
 .bg{background:transparent;color:var(--gray);border:1px solid var(--b);padding:7px 16px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit}
 .bg:hover{border-color:var(--gray)}
 .bd{background:transparent;color:#c0392b;border:1px solid #c0392b;padding:7px 13px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit}
 .bai{background:#f3eefa;color:var(--purple);border:1px solid var(--purple);padding:8px 16px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px}
 .bai:hover{background:var(--purple);color:#fff}
+/* DASHBOARD */
+#sDash{background:var(--bg)}
+.dh{background:var(--w);border-bottom:1px solid var(--b);padding:16px 36px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.db{max-width:1100px;margin:0 auto;padding:40px 22px}
+.dbt{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gray);margin-bottom:24px}
+.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.tc{background:var(--w);border:1px solid var(--b);overflow:hidden}
+.tch{height:148px;background:linear-gradient(135deg,var(--purple),#3a1a5e);position:relative;overflow:hidden}
+.tch img{width:100%;height:100%;object-fit:cover}
+.tco{position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;flex-direction:column;justify-content:flex-end;padding:12px}
+.tco h3{color:#fff;font-size:12px;letter-spacing:.14em;font-weight:300;text-transform:uppercase}
+.tco p{color:rgba(255,255,255,.72);font-size:10px}
+.tcb{padding:12px}
+.tmeta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.badge{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border:1px solid var(--b);color:var(--gray)}
+.tact{display:flex;gap:5px;flex-wrap:wrap}
+.ntc{border:1px dashed var(--b);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;cursor:pointer;background:var(--w);gap:9px;color:var(--gl)}
+.ntc:hover{border-color:var(--purple);color:var(--purple)}
+.ntc .plus{font-size:28px;font-weight:100}
+.ntc span{font-size:10px;letter-spacing:.15em;text-transform:uppercase}
+/* MODAL */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto}
+.mo.open{display:flex;align-items:flex-start;justify-content:center;padding:18px}
+.md{background:var(--w);width:100%;max-width:860px;margin:auto}
+.mh{padding:22px 26px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+.mh h2{font-size:12px;letter-spacing:.2em;font-weight:300;text-transform:uppercase}
+.mcl{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray)}
+.mb{padding:26px}
+.mf{padding:16px 26px;border-top:1px solid var(--b);display:flex;justify-content:flex-end;gap:9px}
 .fg{margin-bottom:20px}
 .fl{display:block;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);margin-bottom:7px}
 .fi{width:100%;border:none;border-bottom:1px solid var(--b);padding:8px 0;font-size:14px;font-weight:300;outline:none;background:transparent;font-family:inherit}
@@ -31,45 +68,12 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
 .ftab{padding:10px 16px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:var(--gl);font-family:inherit}
 .ftab.active{color:var(--purple);border-bottom-color:var(--purple)}
 .tp{display:none}.tp.active{display:block}
-.uz{border:1px dashed var(--b);padding:16px;text-align:center;cursor:pointer;position:relative;background:var(--bg);transition:border-color .2s}
-.uz:hover{border-color:var(--purple)}
+.uz{border:1px dashed var(--b);padding:16px;text-align:center;cursor:pointer;position:relative;background:var(--bg)}
 .uz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .uz p{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gl)}
 .uprev{margin-top:7px;display:flex;align-items:center;gap:8px}
 .uprev img{max-height:56px;max-width:130px;object-fit:contain;border:1px solid var(--b);background:#fff;padding:3px}
-.uclear{background:none;border:none;color:#c0392b;cursor:pointer;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-family:inherit}
-#loginView{min-height:100vh;display:flex;align-items:center;justify-content:center}
-.lbox{text-align:center;padding:56px 36px;max-width:400px;width:100%}
-.lsep{width:36px;height:1px;background:var(--purple);margin:10px auto 36px}
-.lerr{color:#c0392b;font-size:12px;margin-bottom:12px;min-height:16px}
-#dashView{min-height:100vh;background:var(--bg)}
-.dh{background:var(--w);border-bottom:1px solid var(--b);padding:16px 36px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.db{max-width:1100px;margin:0 auto;padding:40px 22px}
-.dbt{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gray);margin-bottom:24px}
-.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
-.tc{background:var(--w);border:1px solid var(--b);overflow:hidden;transition:box-shadow .2s}
-.tc:hover{box-shadow:0 4px 18px rgba(0,0,0,.07)}
-.tch{height:148px;background:linear-gradient(135deg,var(--purple),#3a1a5e);position:relative;overflow:hidden}
-.tch img{width:100%;height:100%;object-fit:cover}
-.tco{position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;flex-direction:column;justify-content:flex-end;padding:12px}
-.tco h3{color:#fff;font-size:12px;letter-spacing:.14em;font-weight:300;text-transform:uppercase}
-.tco p{color:rgba(255,255,255,.72);font-size:10px}
-.tcb{padding:12px}
-.tmeta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
-.badge{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border:1px solid var(--b);color:var(--gray)}
-.tact{display:flex;gap:5px;flex-wrap:wrap}
-.ntc{border:1px dashed var(--b);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;cursor:pointer;background:var(--w);transition:all .2s;gap:9px;color:var(--gl)}
-.ntc:hover{border-color:var(--purple);color:var(--purple)}
-.ntc .plus{font-size:28px;font-weight:100}
-.ntc span{font-size:10px;letter-spacing:.15em;text-transform:uppercase}
-.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto}
-.mo.open{display:flex;align-items:flex-start;justify-content:center;padding:18px}
-.md{background:var(--w);width:100%;max-width:860px;margin:auto}
-.mh{padding:22px 26px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
-.mh h2{font-size:12px;letter-spacing:.2em;font-weight:300;text-transform:uppercase}
-.mcl{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray);line-height:1}
-.mb{padding:26px}
-.mf{padding:16px 26px;border-top:1px solid var(--b);display:flex;justify-content:flex-end;gap:9px}
+.uclear{background:none;border:none;color:#c0392b;cursor:pointer;font-size:10px;font-family:inherit}
 .aib{background:#f3eefa;border:1px solid #c9a8e8;padding:14px 18px;margin-bottom:22px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
 .aist{font-size:11px;color:var(--purple);margin-top:7px;min-height:16px;font-style:italic}
 .di{border:1px solid var(--b);margin-bottom:12px}
@@ -100,6 +104,7 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
 .lkbox{background:var(--bg);border:1px solid var(--b);padding:10px 13px;display:flex;align-items:center;gap:9px;margin-top:12px}
 .lkbox input{flex:1;background:transparent;border:none;font-size:13px;color:var(--purple);outline:none;font-family:inherit}
 .lkcopy{background:var(--purple);color:#fff;border:none;padding:6px 13px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit}
+/* PHONE PREVIEW */
 .pvo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:2000;align-items:center;justify-content:center;flex-direction:column;gap:16px}
 .pvo.open{display:flex}
 .pvcl{color:#fff;background:none;border:1px solid rgba(255,255,255,.3);padding:7px 18px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;font-family:inherit}
@@ -107,8 +112,11 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
 .pshell::before{content:'';position:absolute;top:11px;left:50%;transform:translateX(-50%);width:100px;height:28px;background:#111;border-radius:0 0 16px 16px;z-index:5}
 .pscreen{width:100%;height:100%;border-radius:40px;overflow:hidden;background:#fff}
 .pscreen iframe{width:375px;height:698px;border:none;display:block}
+/* DESKTOP PREVIEW */
 #deskOverlay{display:none;position:fixed;inset:0;z-index:3000;background:#fff;flex-direction:column}
-#tvView{min-height:100vh;background:var(--w)}
+#deskOverlay.open{display:flex}
+/* TRAVELER */
+#sTraveler{background:var(--w)}
 .tvh{position:relative;height:75vh;min-height:380px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .tvhbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}
 .tvhdark{position:absolute;inset:0;background:rgba(0,0,0,.35)}
@@ -118,12 +126,10 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
 .tvmeta{color:rgba(255,255,255,.75);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:24px}
 .tvltlogo{opacity:.6;margin-top:10px}
 .tvback{position:absolute;top:18px;left:18px;z-index:10;color:rgba(255,255,255,.8);background:transparent;border:1px solid rgba(255,255,255,.4);padding:6px 13px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit}
-.tvnav{position:sticky;top:0;z-index:100;background:var(--w);border-bottom:1px solid var(--b);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tvnav{position:sticky;top:0;z-index:100;background:var(--w);border-bottom:1px solid var(--b);display:flex;overflow-x:auto}
 .tvnav::-webkit-scrollbar{display:none}
-.tvni{padding:14px 22px;font-size:10px;letter-spacing:.17em;text-transform:uppercase;cursor:pointer;white-space:nowrap;color:var(--gl);border-bottom:2px solid transparent;transition:all .2s}
+.tvni{padding:14px 22px;font-size:10px;letter-spacing:.17em;text-transform:uppercase;cursor:pointer;white-space:nowrap;color:var(--gl);border-bottom:2px solid transparent}
 .tvni.active{color:var(--purple);border-bottom-color:var(--purple)}
-.tvsec{display:none;max-width:860px;margin:0 auto;padding:44px 24px}
-.tvsec.active{display:block}
 .tvft{text-align:center;padding:36px 22px;border-top:1px solid var(--b)}
 .tvftl{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:13px;flex-wrap:wrap}
 .tvftl a{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gray);text-decoration:none}
@@ -133,13 +139,14 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
 .instbtns{display:flex;gap:7px}
 .instbtns button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:5px 11px;font-size:10px;cursor:pointer;font-family:inherit}
 .instbtns button.yes{background:#fff;color:var(--purple)}
-@media(max-width:580px){.fr,.abot{grid-template-columns:1fr}.dh{padding:13px 16px}.mb{padding:16px 13px}.pshell{width:320px;height:620px;border-radius:42px}.pscreen iframe{width:320px;height:598px}}
+@media(max-width:580px){.fr,.abot{grid-template-columns:1fr}.dh{padding:13px 16px}.mb{padding:16px 13px}.pshell{width:320px;height:620px}.pscreen iframe{width:320px;height:598px}}
 </style>
 </head>
 <body>
+<div id="app">
 
-<!-- LOGIN OVERLAY (fixed, on top of everything) -->
-<div id="loginView" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center">
+<!-- LOGIN -->
+<div id="sLogin" class="screen on">
   <div class="lbox">
     <svg viewBox="0 0 320 28" xmlns="http://www.w3.org/2000/svg" style="height:26px;width:auto;display:block;margin:0 auto">
       <text x="0" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>
@@ -153,12 +160,13 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
     <div style="margin-top:26px;padding-top:20px;border-top:1px solid var(--b)">
       <p style="font-size:10px;color:var(--gl);letter-spacing:.12em;text-transform:uppercase;margin-bottom:11px">Traveler? View Your Trip</p>
       <input type="text" id="travCode" placeholder="Enter trip code" style="width:100%;border:none;border-bottom:1px solid var(--b);padding:9px 0;font-size:14px;font-weight:300;outline:none;font-family:inherit"/>
-      <button class="bs" id="travBtn" style="width:100%;margin-top:12px">View My Itinerary</button>
+      <button class="bs" id="travBtn" style="margin-top:12px">View My Itinerary</button>
     </div>
   </div>
 </div>
 
-<div id="dashView" class="view">
+<!-- DASHBOARD -->
+<div id="sDash" class="screen">
   <div class="dh">
     <svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:18px;width:auto">
       <text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>
@@ -175,114 +183,8 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
   </div>
 </div>
 
-<div class="mo" id="editorModal">
-  <div class="md">
-    <div class="mh"><h2 id="edTitle">New Trip</h2><button class="mcl" id="edCloseBtn">×</button></div>
-    <div class="mb">
-      <div class="aib">
-        <div style="font-size:19px;margin-top:2px">✨</div>
-        <div style="flex:1">
-          <p style="font-size:12px;color:var(--purple);margin-bottom:2px;font-weight:400">AI Itinerary Pre-fill</p>
-          <span style="font-size:10px;color:var(--gl)">Upload a PDF or paste text — AI populates all days automatically</span>
-          <div class="aist" id="aiSt"></div>
-        </div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
-          <label class="bai" style="position:relative;cursor:pointer">
-            <input type="file" accept="application/pdf" id="pdfInput" style="position:absolute;inset:0;opacity:0;cursor:pointer"/>
-            📄 Upload PDF
-          </label>
-          <button class="bai" id="pasteBtn">📝 Paste Text</button>
-        </div>
-      </div>
-      <div id="pasteArea" style="display:none;margin-bottom:18px">
-        <textarea class="fta" id="pasteText" placeholder="Paste itinerary text…" style="min-height:110px"></textarea>
-        <div style="display:flex;gap:7px;margin-top:7px">
-          <button class="bp" id="genBtn" style="width:auto;padding:8px 18px">Generate</button>
-          <button class="bg" id="cancelPasteBtn">Cancel</button>
-        </div>
-      </div>
-      <div class="ftabs" id="editorTabs">
-        <div class="ftab active" data-tab="tSetup">Setup</div>
-        <div class="ftab" data-tab="tItinerary">Itinerary</div>
-        <div class="ftab" data-tab="tPacking">Packing</div>
-        <div class="ftab" data-tab="tInfo">General Info</div>
-        <div class="ftab" data-tab="tDocs">Documents</div>
-        <div class="ftab" data-tab="tCity">City Guide</div>
-        <div class="ftab" data-tab="tShare">Share</div>
-      </div>
-      <div class="tp active" id="tSetup">
-        <div class="fr">
-          <div class="fg"><label class="fl">Trip Name *</label><input class="fi" id="fName" placeholder="e.g. Paris Art Week 2025"/></div>
-          <div class="fg"><label class="fl">Trip Code *</label><input class="fi" id="fCode" placeholder="e.g. paris2025"/></div>
-        </div>
-        <div class="fr">
-          <div class="fg"><label class="fl">Destination(s)</label><input class="fi" id="fDest" placeholder="e.g. Paris, France"/></div>
-          <div class="fg"><label class="fl">Travel Dates</label><input class="fi" id="fDates" placeholder="e.g. May 10-17, 2025"/></div>
-        </div>
-        <div class="fr">
-          <div class="fg">
-            <label class="fl">Hero Image</label>
-            <div class="uz"><input type="file" accept="image/*" id="heroInput"/><p>Click or drag to upload</p></div>
-            <div id="heroPrev"></div>
-          </div>
-          <div class="fg">
-            <label class="fl">Client / Group Name</label>
-            <input class="fi" id="fClient" placeholder="e.g. Denver Art Museum" style="margin-bottom:16px"/>
-            <label class="fl">Client Logo</label>
-            <div class="uz"><input type="file" accept="image/*" id="logoInput"/><p>Click or drag to upload</p></div>
-            <div id="logoPrev"></div>
-          </div>
-        </div>
-        <div class="fg"><label class="fl">Welcome Message</label><textarea class="fta" id="fWelcome" placeholder="A short welcome note…"></textarea></div>
-        <div class="fg"><label class="fl">Coordinator WhatsApp / Phone</label><input class="fi" id="fPhone" placeholder="+1 305 000 0000"/><p style="font-size:10px;color:var(--gl);margin-top:5px">Used for the Message Liaisons Team button</p></div>
-      </div>
-      <div class="tp" id="tItinerary"><div id="daysC"></div><button class="addbtn" id="addDayBtn">+ Add Day</button></div>
-      <div class="tp" id="tPacking">
-        <p style="font-size:11px;color:var(--gl);margin-bottom:12px">Drag to reorder</p>
-        <ul class="pl" id="packList"></ul>
-        <button class="addbtn" id="addPackBtn">+ Add Item</button>
-      </div>
-      <div class="tp" id="tInfo"><div id="infoC"></div><button class="addbtn" id="addInfoBtn">+ Add Section</button></div>
-      <div class="tp" id="tDocs">
-        <p style="font-size:12px;color:var(--gray);margin-bottom:16px">Upload PDFs or add links.</p>
-        <div id="docsC"></div>
-        <div style="display:flex;gap:7px;margin-top:7px">
-          <button class="addbtn" id="addDocUpBtn" style="flex:1">+ Upload PDF</button>
-          <button class="addbtn" id="addDocLinkBtn" style="flex:1">+ Add Link</button>
-        </div>
-      </div>
-      <div class="tp" id="tCity"><div id="cityC"></div><button class="addbtn" id="addCityBtn">+ Add City</button></div>
-      <div class="tp" id="tShare">
-        <p style="font-size:13px;color:var(--gray);line-height:1.7;margin-bottom:18px">Share this link with travelers.</p>
-        <div class="fg"><label class="fl">Traveler Link</label>
-          <div class="lkbox"><input type="text" id="shareLink" readonly/><button class="lkcopy" id="copyLinkBtn">Copy</button></div></div>
-        <div class="fg" style="margin-top:18px"><label class="fl">Trip Code</label>
-          <p id="shareCode" style="font-size:18px;color:var(--purple);letter-spacing:.2em;font-weight:300;margin-top:5px"></p></div>
-      </div>
-    </div>
-    <div class="mf"><button class="bg" id="edCancelBtn">Cancel</button><button class="bp" id="saveTripBtn" style="width:auto;padding:12px 32px">Save Trip</button></div>
-  </div>
-</div>
-
-<div class="pvo" id="prevOverlay">
-  <button class="pvcl" id="closeMobileBtn">x Close Preview</button>
-  <div class="pshell">
-    <div class="pscreen">
-      <iframe id="prevFrame" title="Mobile Preview" sandbox="allow-scripts allow-same-origin"></iframe>
-    </div>
-  </div>
-  <p style="color:rgba(255,255,255,.35);font-size:9px;letter-spacing:.14em;text-transform:uppercase">iPhone 15 - 375px</p>
-</div>
-
-<div id="deskOverlay" style="display:none;position:fixed;inset:0;z-index:3000;background:#fff;flex-direction:column">
-  <div style="background:#fff;border-bottom:1px solid #E0E0E0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-    <div style="background:#F5F5F5;border:1px solid #E0E0E0;padding:4px 16px;font-size:11px;color:#808080;min-width:300px;text-align:center" id="deskUrlBar">liaisonstravel.com</div>
-    <button id="closeDeskBtn" style="background:none;border:1px solid #E0E0E0;padding:6px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:#808080">x Close</button>
-  </div>
-  <iframe id="deskFrame" sandbox="allow-scripts allow-same-origin allow-popups" style="flex:1;border:none;width:100%"></iframe>
-</div>
-
-<div id="tvView" class="view">
+<!-- TRAVELER -->
+<div id="sTraveler" class="screen">
   <div class="tvh">
     <button class="tvback" id="tvBackBtn">Back</button>
     <img class="tvhbg" id="tvBg" src="" alt="" style="display:none"/>
@@ -315,6 +217,115 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
   </footer>
 </div>
 
+<!-- EDITOR MODAL -->
+<div class="mo" id="editorModal">
+  <div class="md">
+    <div class="mh"><h2 id="edTitle">New Trip</h2><button class="mcl" id="edCloseBtn">x</button></div>
+    <div class="mb">
+      <div class="aib">
+        <div style="font-size:19px;margin-top:2px">✨</div>
+        <div style="flex:1">
+          <p style="font-size:12px;color:var(--purple);margin-bottom:2px;font-weight:400">AI Itinerary Pre-fill</p>
+          <span style="font-size:10px;color:var(--gl)">Upload a PDF or paste text</span>
+          <div class="aist" id="aiSt"></div>
+        </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
+          <label class="bai" style="position:relative;cursor:pointer">
+            <input type="file" accept="application/pdf" id="pdfInput" style="position:absolute;inset:0;opacity:0;cursor:pointer"/>
+            PDF Upload
+          </label>
+          <button class="bai" id="pasteBtn">Paste Text</button>
+        </div>
+      </div>
+      <div id="pasteArea" style="display:none;margin-bottom:18px">
+        <textarea class="fta" id="pasteText" placeholder="Paste itinerary text..." style="min-height:110px"></textarea>
+        <div style="display:flex;gap:7px;margin-top:7px">
+          <button class="bp" id="genBtn" style="width:auto;padding:8px 18px">Generate</button>
+          <button class="bg" id="cancelPasteBtn">Cancel</button>
+        </div>
+      </div>
+      <div class="ftabs" id="editorTabs">
+        <div class="ftab active" data-tab="tSetup">Setup</div>
+        <div class="ftab" data-tab="tItinerary">Itinerary</div>
+        <div class="ftab" data-tab="tPacking">Packing</div>
+        <div class="ftab" data-tab="tInfo">General Info</div>
+        <div class="ftab" data-tab="tDocs">Documents</div>
+        <div class="ftab" data-tab="tCity">City Guide</div>
+        <div class="ftab" data-tab="tShare">Share</div>
+      </div>
+      <div class="tp active" id="tSetup">
+        <div class="fr">
+          <div class="fg"><label class="fl">Trip Name *</label><input class="fi" id="fName" placeholder="e.g. Paris Art Week 2025"/></div>
+          <div class="fg"><label class="fl">Trip Code *</label><input class="fi" id="fCode" placeholder="e.g. paris2025"/></div>
+        </div>
+        <div class="fr">
+          <div class="fg"><label class="fl">Destination(s)</label><input class="fi" id="fDest" placeholder="e.g. Paris, France"/></div>
+          <div class="fg"><label class="fl">Travel Dates</label><input class="fi" id="fDates" placeholder="e.g. May 10-17, 2025"/></div>
+        </div>
+        <div class="fr">
+          <div class="fg">
+            <label class="fl">Hero Image</label>
+            <div class="uz"><input type="file" accept="image/*" id="heroInput"/><p>Click or drag to upload</p></div>
+            <div id="heroPrev"></div>
+          </div>
+          <div class="fg">
+            <label class="fl">Client Name</label>
+            <input class="fi" id="fClient" placeholder="e.g. Denver Art Museum" style="margin-bottom:16px"/>
+            <label class="fl">Client Logo</label>
+            <div class="uz"><input type="file" accept="image/*" id="logoInput"/><p>Click or drag to upload</p></div>
+            <div id="logoPrev"></div>
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Welcome Message</label><textarea class="fta" id="fWelcome" placeholder="A short welcome note..."></textarea></div>
+        <div class="fg"><label class="fl">Coordinator WhatsApp</label><input class="fi" id="fPhone" placeholder="+1 305 000 0000"/></div>
+      </div>
+      <div class="tp" id="tItinerary"><div id="daysC"></div><button class="addbtn" id="addDayBtn">+ Add Day</button></div>
+      <div class="tp" id="tPacking">
+        <p style="font-size:11px;color:var(--gl);margin-bottom:12px">Drag to reorder</p>
+        <ul class="pl" id="packList"></ul>
+        <button class="addbtn" id="addPackBtn">+ Add Item</button>
+      </div>
+      <div class="tp" id="tInfo"><div id="infoC"></div><button class="addbtn" id="addInfoBtn">+ Add Section</button></div>
+      <div class="tp" id="tDocs">
+        <p style="font-size:12px;color:var(--gray);margin-bottom:16px">Upload PDFs or add links.</p>
+        <div id="docsC"></div>
+        <div style="display:flex;gap:7px;margin-top:7px">
+          <button class="addbtn" id="addDocUpBtn" style="flex:1">+ Upload PDF</button>
+          <button class="addbtn" id="addDocLinkBtn" style="flex:1">+ Add Link</button>
+        </div>
+      </div>
+      <div class="tp" id="tCity"><div id="cityC"></div><button class="addbtn" id="addCityBtn">+ Add City</button></div>
+      <div class="tp" id="tShare">
+        <p style="font-size:13px;color:var(--gray);line-height:1.7;margin-bottom:18px">Share this link with travelers.</p>
+        <div class="fg"><label class="fl">Traveler Link</label>
+          <div class="lkbox"><input type="text" id="shareLink" readonly/><button class="lkcopy" id="copyLinkBtn">Copy</button></div></div>
+        <div class="fg" style="margin-top:18px"><label class="fl">Trip Code</label>
+          <p id="shareCode" style="font-size:18px;color:var(--purple);letter-spacing:.2em;font-weight:300;margin-top:5px"></p></div>
+      </div>
+    </div>
+    <div class="mf"><button class="bg" id="edCancelBtn">Cancel</button><button class="bp" id="saveTripBtn" style="width:auto;padding:12px 32px">Save Trip</button></div>
+  </div>
+</div>
+
+<!-- MOBILE PREVIEW -->
+<div class="pvo" id="prevOverlay">
+  <button class="pvcl" id="closeMobileBtn">x Close</button>
+  <div class="pshell">
+    <div class="pscreen">
+      <iframe id="prevFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- DESKTOP PREVIEW -->
+<div id="deskOverlay">
+  <div style="background:#fff;border-bottom:1px solid #E0E0E0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="background:#F5F5F5;border:1px solid #E0E0E0;padding:4px 16px;font-size:11px;color:#808080;min-width:300px;text-align:center" id="deskUrlBar">liaisonstravel.com</div>
+    <button id="closeDeskBtn" style="background:none;border:1px solid #E0E0E0;padding:6px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:#808080">x Close</button>
+  </div>
+  <iframe id="deskFrame" sandbox="allow-scripts allow-same-origin allow-popups" style="flex:1;border:none;width:100%"></iframe>
+</div>
+
 <div class="instb" id="instBanner">
   <p style="font-size:11px">Add LIAISONS TRAVEL to your home screen</p>
   <div class="instbtns">
@@ -323,113 +334,77 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
   </div>
 </div>
 
+</div><!-- end #app -->
+
 <script>
 var PWD='liaisons2025';
 var AI_MODEL='claude-sonnet-4-20250514';
 var trips={};
 var curId=null;
-var eDays=[];
-var ePack=[];
-var eInfo=[];
-var eDocs=[];
-var eCity=[];
-var eHero=null;
-var eLogo=null;
-var dragSrc=null;
-var deferredPrompt=null;
+var eDays=[],ePack=[],eInfo=[],eDocs=[],eCity=[];
+var eHero=null,eLogo=null,dragSrc=null,deferredPrompt=null;
 
-function save(){
-  try{localStorage.setItem('lt',JSON.stringify(trips));}
-  catch(e){alert('Storage full.');}
-}
-function load(){
-  try{
-    var d=localStorage.getItem('lt');
-    if(d)trips=JSON.parse(d);
-  }catch(e){}
-}
-function sv(id){
-  // Login is a fixed overlay — just show/hide it
-  var login=document.getElementById('loginView');
-  if(id==='loginView'){
-    login.style.display='flex';
-  } else {
-    login.style.display='none';
-  }
-  // For other views, use class switching
-  var views=document.querySelectorAll('.view');
-  for(var i=0;i<views.length;i++){
-    views[i].classList.remove('active');
-    views[i].style.display='none';
-  }
-  if(id!=='loginView'){
-    var target=document.getElementById(id);
-    if(target){
-      target.classList.add('active');
-      target.style.display='block';
-    }
-  }
-  window.scrollTo(0,0);
-}
-function showLogin(){sv('loginView');}
-function logout(){sv('loginView');}
+function save(){try{localStorage.setItem('lt',JSON.stringify(trips));}catch(e){alert('Storage full.');}}
+function load(){try{var d=localStorage.getItem('lt');if(d)trips=JSON.parse(d);}catch(e){}}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
-function doLogin(){
-  var pass=document.getElementById('loginPass').value;
-  if(pass===PWD){sv('dashView');renderDash();}
-  else document.getElementById('loginErr').textContent='Incorrect access code.';
+// SCREEN SWITCHING - simple and bulletproof
+function showScreen(id){
+  var screens=document.querySelectorAll('.screen');
+  for(var i=0;i<screens.length;i++){
+    screens[i].classList.remove('on');
+  }
+  var t=document.getElementById(id);
+  if(t) t.classList.add('on');
+  window.scrollTo(0,0);
 }
+
+function doLogin(){
+  showScreen('sDash');
+  renderDash();
+}
+function doLogout(){showScreen('sLogin');}
 function loadTraveler(){
   var code=document.getElementById('travCode').value.trim().toLowerCase();
-  var found=null;
   var keys=Object.keys(trips);
   for(var i=0;i<keys.length;i++){
     var t=trips[keys[i]];
-    if(t.code&&t.code.toLowerCase()===code){found=t;break;}
+    if(t.code&&t.code.toLowerCase()===code){renderTV(t);showScreen('sTraveler');return;}
   }
-  if(found){renderTV(found);sv('tvView');}
-  else alert('Trip code not found.');
+  alert('Trip code not found.');
 }
 
 function renderDash(){
-  var g=document.getElementById('tripsGrid');
-  g.innerHTML='';
+  var g=document.getElementById('tripsGrid');g.innerHTML='';
   var keys=Object.keys(trips);
-  var active=[];
-  var archived=[];
-  for(var i=0;i<keys.length;i++){
-    if(trips[keys[i]].archived)archived.push(keys[i]);
-    else active.push(keys[i]);
-  }
+  var active=[],archived=[];
+  for(var i=0;i<keys.length;i++){(trips[keys[i]].archived?archived:active).push(keys[i]);}
   for(var i=0;i<active.length;i++)g.appendChild(makeTripCard(active[i],trips[active[i]]));
-  var nc=document.createElement('div');
-  nc.className='ntc';
+  var nc=document.createElement('div');nc.className='ntc';
   nc.innerHTML='<div class="plus">+</div><span>Create New Trip</span>';
   nc.addEventListener('click',function(){openEditor(null);});
   g.appendChild(nc);
   if(archived.length){
     var sep=document.createElement('div');
     sep.style.cssText='grid-column:1/-1;padding:24px 0 8px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gl);border-top:1px solid var(--b);margin-top:8px';
-    sep.textContent='Archived Trips';
-    g.appendChild(sep);
+    sep.textContent='Archived Trips';g.appendChild(sep);
     for(var i=0;i<archived.length;i++)g.appendChild(makeTripCard(archived[i],trips[archived[i]]));
   }
 }
 function makeTripCard(id,t){
-  var c=document.createElement('div');
-  c.className='tc';
+  var c=document.createElement('div');c.className='tc';
   if(t.archived)c.style.opacity='0.6';
-  var hero=t.heroImg?'<img src="'+t.heroImg+'" alt=""/>':'';
-  var dates=t.dates?'<span class="badge">'+t.dates+'</span>':'';
-  var client=t.clientName?'<span class="badge">'+t.clientName+'</span>':'';
-  c.innerHTML='<div class="tch">'+hero+'<div class="tco"><h3>'+(t.name||'Untitled')+'</h3><p>'+(t.destinations||'')+'</p></div></div>'+
-    '<div class="tcb"><div class="tmeta">'+dates+client+'<span class="badge">Code: '+(t.code||'-')+'</span></div>'+
+  c.innerHTML='<div class="tch">'+(t.heroImg?'<img src="'+t.heroImg+'" alt=""/>':'')+
+    '<div class="tco"><h3>'+(t.name||'Untitled')+'</h3><p>'+(t.destinations||'')+'</p></div></div>'+
+    '<div class="tcb"><div class="tmeta">'+
+    (t.dates?'<span class="badge">'+t.dates+'</span>':'')+
+    (t.clientName?'<span class="badge">'+t.clientName+'</span>':'')+
+    '<span class="badge">Code: '+(t.code||'-')+'</span></div>'+
     '<div class="tact">'+
     '<button class="bs" data-action="edit" data-id="'+id+'">Edit</button>'+
     '<button class="bg" data-action="mobile" data-id="'+id+'">Mobile</button>'+
     '<button class="bg" data-action="desktop" data-id="'+id+'">Desktop</button>'+
-    '<button class="bg" data-action="copylink" data-id="'+id+'">Link</button>'+
+    '<button class="bg" data-action="link" data-id="'+id+'">Link</button>'+
     '<button class="bg" data-action="archive" data-id="'+id+'">'+(t.archived?'Unarchive':'Archive')+'</button>'+
     '<button class="bd" data-action="delete" data-id="'+id+'">Delete</button>'+
     '</div></div>';
@@ -438,50 +413,35 @@ function makeTripCard(id,t){
 document.addEventListener('click',function(e){
   var btn=e.target.closest('[data-action]');
   if(!btn)return;
-  var action=btn.getAttribute('data-action');
-  var id=btn.getAttribute('data-id');
-  if(action==='edit')openEditor(id);
-  else if(action==='mobile')openMobilePrev(id);
-  else if(action==='desktop')openDesktopPrev(id);
-  else if(action==='copylink')copyTripLink(id);
-  else if(action==='archive')archiveTrip(id);
-  else if(action==='delete')delTrip(id);
+  var a=btn.getAttribute('data-action'),id=btn.getAttribute('data-id');
+  if(a==='edit')openEditor(id);
+  else if(a==='mobile')openMobilePrev(id);
+  else if(a==='desktop')openDesktopPrev(id);
+  else if(a==='link')copyTripLink(id);
+  else if(a==='archive'){trips[id].archived=!trips[id].archived;save();renderDash();}
+  else if(a==='delete'){if(confirm('Delete?')){delete trips[id];save();renderDash();}}
 });
-function delTrip(id){if(confirm('Delete this trip?')){delete trips[id];save();renderDash();}}
-function archiveTrip(id){if(!trips[id])return;trips[id].archived=!trips[id].archived;save();renderDash();}
 function copyTripLink(id){
   var t=trips[id];if(!t)return;
   var base=location.href.split('?')[0].split('#')[0];
   var link=base+'#trip/'+t.code;
-  if(navigator.clipboard){navigator.clipboard.writeText(link).then(function(){alert('Link copied!\n\n'+link);});}
-  else{prompt('Copy this link:',link);}
+  if(navigator.clipboard){navigator.clipboard.writeText(link).then(function(){alert('Copied!\n'+link);});}
+  else prompt('Copy:',link);
 }
-
 function openMobilePrev(id){
   var trip=trips[id];if(!trip)return;
   document.getElementById('prevFrame').srcdoc=buildHTML(trip);
   document.getElementById('prevOverlay').classList.add('open');
 }
-function closePrev(){
-  document.getElementById('prevOverlay').classList.remove('open');
-  document.getElementById('prevFrame').srcdoc='';
-}
 function openDesktopPrev(id){
   var trip=trips[id];if(!trip)return;
-  var overlay=document.getElementById('deskOverlay');
-  var frame=document.getElementById('deskFrame');
-  document.getElementById('deskUrlBar').textContent='liaisonstravel.com/trip/'+(trip.code||'preview');
-  frame.srcdoc=buildHTML(trip);
-  overlay.style.display='flex';
-}
-function closeDeskPrev(){
-  document.getElementById('deskOverlay').style.display='none';
-  document.getElementById('deskFrame').srcdoc='';
+  document.getElementById('deskUrlBar').textContent='liaisonstravel.com/trip/'+(trip.code||'');
+  document.getElementById('deskFrame').srcdoc=buildHTML(trip);
+  document.getElementById('deskOverlay').classList.add('open');
 }
 
 function openEditor(id){
-  curId=id;
-  var t=id?trips[id]:{};
+  curId=id;var t=id?trips[id]:{};
   document.getElementById('edTitle').textContent=id?'Edit Trip':'New Trip';
   document.getElementById('fName').value=t.name||'';
   document.getElementById('fCode').value=t.code||'';
@@ -490,10 +450,8 @@ function openEditor(id){
   document.getElementById('fClient').value=t.clientName||'';
   document.getElementById('fWelcome').value=t.welcome||'';
   document.getElementById('fPhone').value=t.contactPhone||'';
-  eHero=t.heroImg||null;
-  eLogo=t.clientLogo||null;
-  showImgPrev('heroPrev',eHero);
-  showImgPrev('logoPrev',eLogo);
+  eHero=t.heroImg||null;eLogo=t.clientLogo||null;
+  showImgPrev('heroPrev',eHero);showImgPrev('logoPrev',eLogo);
   eDays=t.days?JSON.parse(JSON.stringify(t.days)):[];
   ePack=t.packing?JSON.parse(JSON.stringify(t.packing)):[];
   eInfo=t.info?JSON.parse(JSON.stringify(t.info)):[];
@@ -511,12 +469,11 @@ function switchTab(id){
   var panes=document.querySelectorAll('.tp');
   for(var i=0;i<panes.length;i++)panes[i].classList.remove('active');
   var tabs=document.querySelectorAll('.ftab');
-  for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');
-  document.getElementById(id).classList.add('active');
-  var tabs=document.querySelectorAll('.ftab');
   for(var i=0;i<tabs.length;i++){
+    tabs[i].classList.remove('active');
     if(tabs[i].getAttribute('data-tab')===id)tabs[i].classList.add('active');
   }
+  document.getElementById(id).classList.add('active');
   if(id==='tShare')updateShare(document.getElementById('fCode').value.trim());
 }
 function updateShare(code){
@@ -529,228 +486,119 @@ function saveTrip(){
   var code=document.getElementById('fCode').value.trim().toLowerCase().replace(/\s+/g,'-');
   if(!name||!code){alert('Name and code required.');return;}
   var id=curId||('t'+Date.now());
-  trips[id]={
-    name:name,code:code,
-    destinations:document.getElementById('fDest').value,
-    dates:document.getElementById('fDates').value,
-    heroImg:eHero,
-    clientName:document.getElementById('fClient').value,
-    clientLogo:eLogo,
-    welcome:document.getElementById('fWelcome').value,
-    contactPhone:document.getElementById('fPhone').value,
-    days:eDays,packing:ePack,info:eInfo,docs:eDocs,cityGuide:eCity,
-    archived:false
-  };
+  trips[id]={name:name,code:code,destinations:document.getElementById('fDest').value,dates:document.getElementById('fDates').value,heroImg:eHero,clientName:document.getElementById('fClient').value,clientLogo:eLogo,welcome:document.getElementById('fWelcome').value,contactPhone:document.getElementById('fPhone').value,days:eDays,packing:ePack,info:eInfo,docs:eDocs,cityGuide:eCity,archived:false};
   save();closeEditor();renderDash();
 }
-
-function showImgPrev(containerId,data){
-  var c=document.getElementById(containerId);if(!c)return;
-  if(data){
-    c.innerHTML='<div class="uprev"><img src="'+data+'" alt=""/><button class="uclear" data-clear="'+containerId+'">Remove</button></div>';
-  }else{c.innerHTML='';}
+function showImgPrev(cid,data){
+  var c=document.getElementById(cid);if(!c)return;
+  c.innerHTML=data?'<div class="uprev"><img src="'+data+'" alt=""/><button class="uclear" data-clear="'+cid+'">Remove</button></div>':'';
 }
 function handleImgFile(file,type){
   var r=new FileReader();
-  r.onload=function(ev){
-    if(type==='hero'){eHero=ev.target.result;showImgPrev('heroPrev',eHero);}
-    else{eLogo=ev.target.result;showImgPrev('logoPrev',eLogo);}
-  };
+  r.onload=function(ev){if(type==='hero'){eHero=ev.target.result;showImgPrev('heroPrev',eHero);}else{eLogo=ev.target.result;showImgPrev('logoPrev',eLogo);}};
   r.readAsDataURL(file);
 }
 document.addEventListener('click',function(e){
-  var btn=e.target.closest('[data-clear]');
-  if(!btn)return;
-  var cid=btn.getAttribute('data-clear');
-  if(cid==='heroPrev')eHero=null;
-  else if(cid==='logoPrev')eLogo=null;
-  showImgPrev(cid,null);
+  var b=e.target.closest('[data-clear]');
+  if(b){var cid=b.getAttribute('data-clear');if(cid==='heroPrev')eHero=null;else if(cid==='logoPrev')eLogo=null;showImgPrev(cid,null);}
 });
-
 function setSt(m){document.getElementById('aiSt').textContent=m;}
-function fileToB64(f){
-  return new Promise(function(res,rej){
-    var r=new FileReader();
-    r.onload=function(){res(r.result.split(',')[1]);};
-    r.onerror=rej;
-    r.readAsDataURL(f);
-  });
-}
-function handlePDF(f){
-  if(!f)return;
-  setSt('Reading PDF...');
-  fileToB64(f).then(function(b64){
-    return callAI(null,b64);
-  }).catch(function(err){
-    setSt('Could not read PDF - try pasting as text.');
-    console.error(err);
-  });
-}
-function runAIText(){
-  var text=document.getElementById('pasteText').value.trim();
-  if(!text){alert('Paste some text first.');return;}
-  document.getElementById('pasteArea').style.display='none';
-  callAI(text,null);
-}
+function fileToB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(f);});}
+function handlePDF(f){if(!f)return;setSt('Reading PDF...');fileToB64(f).then(function(b64){return callAI(null,b64);}).catch(function(){setSt('Could not read PDF - try pasting text.');});}
+function runAIText(){var text=document.getElementById('pasteText').value.trim();if(!text){alert('Paste text first.');return;}document.getElementById('pasteArea').style.display='none';callAI(text,null);}
 function callAI(text,pdfB64){
-  setSt('Analyzing itinerary...');
-  var sys='You are a travel itinerary parser. Return ONLY valid JSON, no markdown, no explanation. Structure: {"tripName":"","destinations":"","dates":"","days":[{"title":"","date":"","activities":[{"time":"","title":"","desc":"","mapQuery":"venue + city","photo":null}]}]} Extract every activity, meal, transfer.';
-  var content;
-  if(pdfB64){
-    content=[{type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},{type:'text',text:'Parse this PDF itinerary and return JSON.'}];
-  }else{
-    content=[{type:'text',text:'Parse this itinerary:\n\n'+text}];
-  }
-  return fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({model:AI_MODEL,max_tokens:4000,system:sys,messages:[{role:'user',content:content}]})
-  }).then(function(r){
-    if(!r.ok)throw new Error('API error');
-    return r.json();
-  }).then(function(data){
-    var textBlock=null;
-    var content=data.content||[];
-    for(var i=0;i<content.length;i++){if(content[i].type==='text'){textBlock=content[i];break;}}
-    var raw=textBlock?textBlock.text:'';
+  setSt('Analyzing...');
+  var sys='Return ONLY valid JSON no markdown. Structure: {"tripName":"","destinations":"","dates":"","days":[{"title":"","date":"","activities":[{"time":"","title":"","desc":"","mapQuery":"venue+city","photo":null}]}]}';
+  var content=pdfB64?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},{type:'text',text:'Parse this PDF itinerary.'}]:[{type:'text',text:'Parse this itinerary:\n\n'+text}];
+  return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,max_tokens:4000,system:sys,messages:[{role:'user',content:content}]})})
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var raw='';
+    var c=data.content||[];
+    for(var i=0;i<c.length;i++){if(c[i].type==='text'){raw=c[i].text;break;}}
     raw=raw.replace(/```json/g,'').replace(/```/g,'').trim();
-    var parsed=JSON.parse(raw);
-    if(parsed.tripName&&!document.getElementById('fName').value)document.getElementById('fName').value=parsed.tripName;
-    if(parsed.destinations&&!document.getElementById('fDest').value)document.getElementById('fDest').value=parsed.destinations;
-    if(parsed.dates&&!document.getElementById('fDates').value)document.getElementById('fDates').value=parsed.dates;
-    if(parsed.days&&parsed.days.length){
-      eDays=eDays.concat(parsed.days);
-      renderDays();
-      switchTab('tItinerary');
-      setSt('Done! '+parsed.days.length+' days added. Review and add photos.');
-    }else{setSt('No days found. Try pasting as text.');}
-  }).catch(function(err){
-    setSt('Error - try pasting as text instead.');
-    console.error(err);
-  });
+    var p=JSON.parse(raw);
+    if(p.tripName&&!document.getElementById('fName').value)document.getElementById('fName').value=p.tripName;
+    if(p.destinations&&!document.getElementById('fDest').value)document.getElementById('fDest').value=p.destinations;
+    if(p.dates&&!document.getElementById('fDates').value)document.getElementById('fDates').value=p.dates;
+    if(p.days&&p.days.length){eDays=eDays.concat(p.days);renderDays();switchTab('tItinerary');setSt('Done! '+p.days.length+' days added.');}
+    else setSt('No days found. Try pasting text.');
+  }).catch(function(err){setSt('Error - try pasting text.');console.error(err);});
 }
-
 function renderDays(){
   var c=document.getElementById('daysC');c.innerHTML='';
   for(var di=0;di<eDays.length;di++){
     (function(di){
-      var d=eDays[di];
-      var el=document.createElement('div');el.className='di';
+      var d=eDays[di];var el=document.createElement('div');el.className='di';
       el.innerHTML='<div class="dih" data-toggle="'+di+'"><h4>Day '+(di+1)+' - '+(d.title||'Untitled')+'</h4><button class="rb" data-rmday="'+di+'">x</button></div>'+
-        '<div class="dib" id="db'+di+'">'+
-        '<div class="fr"><div class="fg"><label class="fl">Title</label><input class="fi" value="'+esc(d.title||'')+'" data-dayfield="'+di+'-title"/></div>'+
-        '<div class="fg"><label class="fl">Date</label><input class="fi" value="'+esc(d.date||'')+'" placeholder="e.g. Mon May 10" data-dayfield="'+di+'-date"/></div></div>'+
+        '<div class="dib" id="db'+di+'"><div class="fr">'+
+        '<div class="fg"><label class="fl">Title</label><input class="fi" value="'+esc(d.title||'')+'" data-df="'+di+'-title"/></div>'+
+        '<div class="fg"><label class="fl">Date</label><input class="fi" value="'+esc(d.date||'')+'" data-df="'+di+'-date"/></div></div>'+
         '<label class="fl">Activities</label><div id="ac'+di+'"></div>'+
         '<button class="addbtn" data-addact="'+di+'">+ Add Activity</button></div>';
-      c.appendChild(el);
-      renderActs(di);
+      c.appendChild(el);renderActs(di);
     })(di);
   }
 }
 document.addEventListener('click',function(e){
-  var tog=e.target.closest('[data-toggle]');
-  if(tog){var di=tog.getAttribute('data-toggle');document.getElementById('db'+di).classList.toggle('open');return;}
-  var rm=e.target.closest('[data-rmday]');
-  if(rm){eDays.splice(parseInt(rm.getAttribute('data-rmday')),1);renderDays();return;}
-  var aa=e.target.closest('[data-addact]');
-  if(aa){addAct(parseInt(aa.getAttribute('data-addact')));return;}
-  var rma=e.target.closest('[data-rmact]');
-  if(rma){var p=rma.getAttribute('data-rmact').split('-');eDays[p[0]].activities.splice(p[1],1);renderActs(parseInt(p[0]));return;}
-  var rmpi=e.target.closest('[data-rmpack]');
-  if(rmpi){ePack.splice(parseInt(rmpi.getAttribute('data-rmpack')),1);renderPack();return;}
-  var rmi=e.target.closest('[data-rminfo]');
-  if(rmi){eInfo.splice(parseInt(rmi.getAttribute('data-rminfo')),1);renderInfo();return;}
-  var rmd=e.target.closest('[data-rmdoc]');
-  if(rmd){eDocs.splice(parseInt(rmd.getAttribute('data-rmdoc')),1);renderDocs();return;}
-  var rmc=e.target.closest('[data-rmcity]');
-  if(rmc){eCity.splice(parseInt(rmc.getAttribute('data-rmcity')),1);renderCity();return;}
+  var tog=e.target.closest('[data-toggle]');if(tog){document.getElementById('db'+tog.getAttribute('data-toggle')).classList.toggle('open');return;}
+  var rmd=e.target.closest('[data-rmday]');if(rmd){eDays.splice(parseInt(rmd.getAttribute('data-rmday')),1);renderDays();return;}
+  var aa=e.target.closest('[data-addact]');if(aa){addAct(parseInt(aa.getAttribute('data-addact')));return;}
+  var rma=e.target.closest('[data-rmact]');if(rma){var p=rma.getAttribute('data-rmact').split('-');eDays[p[0]].activities.splice(p[1],1);renderActs(parseInt(p[0]));return;}
+  var rmpack=e.target.closest('[data-rmpack]');if(rmpack){ePack.splice(parseInt(rmpack.getAttribute('data-rmpack')),1);renderPack();return;}
+  var rminfo=e.target.closest('[data-rminfo]');if(rminfo){eInfo.splice(parseInt(rminfo.getAttribute('data-rminfo')),1);renderInfo();return;}
+  var rmdoc=e.target.closest('[data-rmdoc]');if(rmdoc){eDocs.splice(parseInt(rmdoc.getAttribute('data-rmdoc')),1);renderDocs();return;}
+  var rmcity=e.target.closest('[data-rmcity]');if(rmcity){eCity.splice(parseInt(rmcity.getAttribute('data-rmcity')),1);renderCity();return;}
+  var rmap=e.target.closest('[data-rmap]');if(rmap){var p=rmap.getAttribute('data-rmap').split('-');eDays[p[0]].activities[p[1]].photo=null;renderActs(parseInt(p[0]));return;}
+  var rmcp=e.target.closest('[data-rmcp]');if(rmcp){eCity[parseInt(rmcp.getAttribute('data-rmcp'))].imgData=null;renderCity();return;}
 });
 document.addEventListener('change',function(e){
-  var df=e.target.getAttribute('data-dayfield');
-  if(df){var p=df.split('-');eDays[p[0]][p[1]]=e.target.value;return;}
-  var af=e.target.getAttribute('data-actfield');
-  if(af){var p=af.split('-');eDays[p[0]].activities[p[1]][p[2]]=e.target.value;return;}
-  var pf=e.target.getAttribute('data-packfield');
-  if(pf){var p=pf.split('-');ePack[p[0]][p[1]]=e.target.value;return;}
-  var inf=e.target.getAttribute('data-infofield');
-  if(inf){var p=inf.split('-');eInfo[p[0]][p[1]]=e.target.value;return;}
-  var dcf=e.target.getAttribute('data-docfield');
-  if(dcf){var p=dcf.split('-');eDocs[p[0]][p[1]]=e.target.value;return;}
-  var cf=e.target.getAttribute('data-cityfield');
-  if(cf){var p=cf.split('-');eCity[p[0]][p[1]]=e.target.value;return;}
+  var df=e.target.getAttribute('data-df');if(df){var p=df.split('-');eDays[p[0]][p[1]]=e.target.value;return;}
+  var af=e.target.getAttribute('data-af');if(af){var p=af.split('-');eDays[p[0]].activities[p[1]][p[2]]=e.target.value;return;}
+  var pf=e.target.getAttribute('data-pf');if(pf){var p=pf.split('-');ePack[p[0]][p[1]]=e.target.value;return;}
+  var inf=e.target.getAttribute('data-inf');if(inf){var p=inf.split('-');eInfo[p[0]][p[1]]=e.target.value;return;}
+  var dcf=e.target.getAttribute('data-dcf');if(dcf){var p=dcf.split('-');eDocs[p[0]][p[1]]=e.target.value;return;}
+  var cf=e.target.getAttribute('data-cf');if(cf){var p=cf.split('-');eCity[p[0]][p[1]]=e.target.value;return;}
   if(e.target.id==='heroInput'&&e.target.files[0])handleImgFile(e.target.files[0],'hero');
   if(e.target.id==='logoInput'&&e.target.files[0])handleImgFile(e.target.files[0],'logo');
   if(e.target.id==='pdfInput'&&e.target.files[0])handlePDF(e.target.files[0]);
-  var ap=e.target.getAttribute('data-actphoto');
-  if(ap&&e.target.files[0]){
-    var p=ap.split('-');
-    var f=e.target.files[0];
-    var r=new FileReader();
-    r.onload=(function(di,ai){return function(ev){eDays[di].activities[ai].photo=ev.target.result;renderActs(di);};})(parseInt(p[0]),parseInt(p[1]));
-    r.readAsDataURL(f);
-  }
-  var rcp=e.target.getAttribute('data-cityphoto');
-  if(rcp&&e.target.files[0]){
-    var idx=parseInt(rcp);
-    var f=e.target.files[0];
-    var r=new FileReader();
-    r.onload=(function(i){return function(ev){eCity[i].imgData=ev.target.result;renderCity();};})(idx);
-    r.readAsDataURL(f);
-  }
+  var ap=e.target.getAttribute('data-ap');
+  if(ap&&e.target.files[0]){var p=ap.split('-');var f=e.target.files[0];var r=new FileReader();r.onload=(function(di,ai){return function(ev){eDays[di].activities[ai].photo=ev.target.result;renderActs(di);};})(parseInt(p[0]),parseInt(p[1]));r.readAsDataURL(f);}
+  var cp=e.target.getAttribute('data-cp');
+  if(cp&&e.target.files[0]){var idx=parseInt(cp);var f=e.target.files[0];var r=new FileReader();r.onload=(function(i){return function(ev){eCity[i].imgData=ev.target.result;renderCity();};})(idx);r.readAsDataURL(f);}
 });
-function addAct(di){
-  if(!eDays[di].activities)eDays[di].activities=[];
-  eDays[di].activities.push({time:'',title:'',desc:'',mapQuery:'',photo:null});
-  renderActs(di);
-}
+function addAct(di){if(!eDays[di].activities)eDays[di].activities=[];eDays[di].activities.push({time:'',title:'',desc:'',mapQuery:'',photo:null});renderActs(di);}
 function renderActs(di){
   var c=document.getElementById('ac'+di);if(!c)return;c.innerHTML='';
   var acts=eDays[di].activities||[];
   for(var ai=0;ai<acts.length;ai++){
     (function(ai){
-      var a=acts[ai];
-      var el=document.createElement('div');el.className='ab';
+      var a=acts[ai];var el=document.createElement('div');el.className='ab';
       el.innerHTML='<div class="abh"><h5>Activity '+(ai+1)+'</h5><button class="rb" data-rmact="'+di+'-'+ai+'">x</button></div>'+
-        '<div class="ag"><div><label class="fl">Time</label><input class="fi" value="'+esc(a.time||'')+'" placeholder="09:00" data-actfield="'+di+'-'+ai+'-time"/></div>'+
-        '<div><label class="fl">Name</label><input class="fi" value="'+esc(a.title||'')+'" placeholder="Activity name" data-actfield="'+di+'-'+ai+'-title"/></div></div>'+
-        '<div class="fg"><label class="fl">Description</label><input class="fi" value="'+esc(a.desc||'')+'" placeholder="Details..." data-actfield="'+di+'-'+ai+'-desc"/></div>'+
-        '<div class="abot">'+
-        '<div class="fg"><label class="fl">Maps Location</label><input class="fi" value="'+esc(a.mapQuery||'')+'" placeholder="Venue + city" data-actfield="'+di+'-'+ai+'-mapQuery"/></div>'+
-        '<div class="fg"><label class="fl">Photo</label>'+
-        '<div class="uz" style="padding:7px"><input type="file" accept="image/*" data-actphoto="'+di+'-'+ai+'"/><p style="font-size:9px">'+(a.photo?'Change photo':'Upload optional')+'</p></div>'+
-        (a.photo?'<div class="uprev"><img src="'+a.photo+'" alt=""/><button class="uclear" data-rmactphoto="'+di+'-'+ai+'">Remove</button></div>':'')+
+        '<div class="ag"><div><label class="fl">Time</label><input class="fi" value="'+esc(a.time||'')+'" placeholder="09:00" data-af="'+di+'-'+ai+'-time"/></div>'+
+        '<div><label class="fl">Name</label><input class="fi" value="'+esc(a.title||'')+'" data-af="'+di+'-'+ai+'-title"/></div></div>'+
+        '<div class="fg"><label class="fl">Description</label><input class="fi" value="'+esc(a.desc||'')+'" data-af="'+di+'-'+ai+'-desc"/></div>'+
+        '<div class="abot"><div class="fg"><label class="fl">Maps Location</label><input class="fi" value="'+esc(a.mapQuery||'')+'" data-af="'+di+'-'+ai+'-mapQuery"/></div>'+
+        '<div class="fg"><label class="fl">Photo</label><div class="uz" style="padding:7px"><input type="file" accept="image/*" data-ap="'+di+'-'+ai+'"/><p style="font-size:9px">'+(a.photo?'Change':'Upload optional')+'</p></div>'+
+        (a.photo?'<div class="uprev"><img src="'+a.photo+'" alt=""/><button class="uclear" data-rmap="'+di+'-'+ai+'">Remove</button></div>':'')+
         '</div></div>';
       c.appendChild(el);
     })(ai);
   }
 }
-document.addEventListener('click',function(e){
-  var rap=e.target.closest('[data-rmactphoto]');
-  if(rap){var p=rap.getAttribute('data-rmactphoto').split('-');eDays[p[0]].activities[p[1]].photo=null;renderActs(parseInt(p[0]));}
-  var rcp=e.target.closest('[data-rmcityphoto]');
-  if(rcp){eCity[parseInt(rcp.getAttribute('data-rmcityphoto'))].imgData=null;renderCity();}
-});
-
 function renderPack(){
   var list=document.getElementById('packList');list.innerHTML='';
   for(var i=0;i<ePack.length;i++){
     (function(i){
       var li=document.createElement('li');li.className='pei';li.draggable=true;
-      li.innerHTML='<span class="dh2">+</span>'+
-        '<input class="pm" placeholder="e.g. Passport" value="'+esc(ePack[i].label||'')+'" data-packfield="'+i+'-label"/>'+
-        '<input class="pcat" placeholder="Category" value="'+esc(ePack[i].category||'')+'" data-packfield="'+i+'-category"/>'+
+      li.innerHTML='<span class="dh2">+</span><input class="pm" placeholder="e.g. Passport" value="'+esc(ePack[i].label||'')+'" data-pf="'+i+'-label"/>'+
+        '<input class="pcat" placeholder="Category" value="'+esc(ePack[i].category||'')+'" data-pf="'+i+'-category"/>'+
         '<button class="rb" data-rmpack="'+i+'">x</button>';
       li.addEventListener('dragstart',function(e){dragSrc=i;li.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
       li.addEventListener('dragend',function(){li.classList.remove('dragging');});
       li.addEventListener('dragover',function(e){e.preventDefault();li.classList.add('drag-over');});
       li.addEventListener('dragleave',function(){li.classList.remove('drag-over');});
-      li.addEventListener('drop',function(e){
-        e.preventDefault();li.classList.remove('drag-over');
-        if(dragSrc===null||dragSrc===i)return;
-        var moved=ePack.splice(dragSrc,1)[0];
-        ePack.splice(i,0,moved);
-        dragSrc=null;renderPack();
-      });
+      li.addEventListener('drop',function(e){e.preventDefault();li.classList.remove('drag-over');if(dragSrc===null||dragSrc===i)return;var m=ePack.splice(dragSrc,1)[0];ePack.splice(i,0,m);dragSrc=null;renderPack();});
       list.appendChild(li);
     })(i);
   }
@@ -760,10 +608,8 @@ function renderInfo(){
   for(var i=0;i<eInfo.length;i++){
     (function(i){
       var el=document.createElement('div');el.className='ci';
-      el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px">'+
-        '<input class="fi" value="'+esc(eInfo[i].title||'')+'" placeholder="Section title" style="flex:1" data-infofield="'+i+'-title"/>'+
-        '<button class="rb" data-rminfo="'+i+'">x</button></div>'+
-        '<textarea class="fta" placeholder="Content..." data-infofield="'+i+'-content">'+esc(eInfo[i].content||'')+'</textarea>';
+      el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px"><input class="fi" value="'+esc(eInfo[i].title||'')+'" placeholder="Section title" style="flex:1" data-inf="'+i+'-title"/><button class="rb" data-rminfo="'+i+'">x</button></div>'+
+        '<textarea class="fta" data-inf="'+i+'-content">'+esc(eInfo[i].content||'')+'</textarea>';
       c.appendChild(el);
     })(i);
   }
@@ -773,317 +619,135 @@ function renderDocs(){
   for(var i=0;i<eDocs.length;i++){
     (function(i){
       var el=document.createElement('div');el.className='dei';
-      if(eDocs[i].type==='pdf'){
-        el.innerHTML='<span class="dtb pdf">PDF</span><span style="flex:1;font-size:12px">'+esc(eDocs[i].name||'')+'</span>'+
-          '<input class="fi" style="width:150px;flex:none" value="'+esc(eDocs[i].label||'')+'" placeholder="Display name" data-docfield="'+i+'-label"/>'+
-          '<button class="rb" data-rmdoc="'+i+'">x</button>';
-      }else{
-        el.innerHTML='<span class="dtb link">LINK</span>'+
-          '<input class="fi" style="flex:1" value="'+esc(eDocs[i].label||'')+'" placeholder="Title" data-docfield="'+i+'-label"/>'+
-          '<input class="fi" style="width:190px;flex:none" value="'+esc(eDocs[i].url||'')+'" placeholder="https://..." data-docfield="'+i+'-url"/>'+
-          '<button class="rb" data-rmdoc="'+i+'">x</button>';
-      }
+      if(eDocs[i].type==='pdf'){el.innerHTML='<span class="dtb pdf">PDF</span><span style="flex:1;font-size:12px">'+esc(eDocs[i].name||'')+'</span><input class="fi" style="width:150px;flex:none" value="'+esc(eDocs[i].label||'')+'" data-dcf="'+i+'-label"/><button class="rb" data-rmdoc="'+i+'">x</button>';}
+      else{el.innerHTML='<span class="dtb link">LINK</span><input class="fi" style="flex:1" value="'+esc(eDocs[i].label||'')+'" data-dcf="'+i+'-label"/><input class="fi" style="width:190px;flex:none" value="'+esc(eDocs[i].url||'')+'" data-dcf="'+i+'-url"/><button class="rb" data-rmdoc="'+i+'">x</button>';}
       c.appendChild(el);
     })(i);
   }
 }
-function addDocUpload(){
-  var inp=document.createElement('input');inp.type='file';inp.accept='application/pdf';
-  inp.onchange=function(e){
-    var f=e.target.files[0];if(!f)return;
-    var r=new FileReader();
-    r.onload=function(ev){eDocs.push({type:'pdf',name:f.name,label:f.name.replace('.pdf',''),data:ev.target.result});renderDocs();};
-    r.readAsDataURL(f);
-  };
-  inp.click();
-}
+function addDocUpload(){var inp=document.createElement('input');inp.type='file';inp.accept='application/pdf';inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){eDocs.push({type:'pdf',name:f.name,label:f.name.replace('.pdf',''),data:ev.target.result});renderDocs();};r.readAsDataURL(f);};inp.click();}
 function renderCity(){
   var c=document.getElementById('cityC');c.innerHTML='';
   for(var i=0;i<eCity.length;i++){
     (function(i){
       var el=document.createElement('div');el.className='ci';
-      el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px">'+
-        '<input class="fi" value="'+esc(eCity[i].name||'')+'" placeholder="City name" style="flex:1" data-cityfield="'+i+'-name"/>'+
-        '<button class="rb" data-rmcity="'+i+'">x</button></div>'+
-        '<div class="fg"><label class="fl">City Photo</label>'+
-        '<div class="uz" style="padding:7px"><input type="file" accept="image/*" data-cityphoto="'+i+'"/><p style="font-size:9px">'+(eCity[i].imgData?'Change':'Upload optional')+'</p></div>'+
-        (eCity[i].imgData?'<div class="uprev"><img src="'+eCity[i].imgData+'" alt=""/><button class="uclear" data-rmcityphoto="'+i+'">Remove</button></div>':'')+
-        '</div>'+
-        '<label class="fl">Tips (one per line)</label>'+
-        '<textarea class="fta" placeholder="Best restaurant..." data-cityfield="'+i+'-tips">'+esc(eCity[i].tips||'')+'</textarea>';
+      el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px"><input class="fi" value="'+esc(eCity[i].name||'')+'" placeholder="City name" style="flex:1" data-cf="'+i+'-name"/><button class="rb" data-rmcity="'+i+'">x</button></div>'+
+        '<div class="fg"><label class="fl">City Photo</label><div class="uz" style="padding:7px"><input type="file" accept="image/*" data-cp="'+i+'"/><p style="font-size:9px">'+(eCity[i].imgData?'Change':'Upload optional')+'</p></div>'+
+        (eCity[i].imgData?'<div class="uprev"><img src="'+eCity[i].imgData+'" alt=""/><button class="uclear" data-rmcp="'+i+'">Remove</button></div>':'')+
+        '</div><label class="fl">Tips (one per line)</label><textarea class="fta" data-cf="'+i+'-tips">'+esc(eCity[i].tips||'')+'</textarea>';
       c.appendChild(el);
     })(i);
   }
 }
 
 function buildHTML(trip){
-  var tabs=[];
-  var sections=[];
-  function addSection(label,html){
-    var idx=tabs.length;
-    tabs.push(label);
-    sections.push('<div class="sec'+(idx===0?' active':'')+'" id="s'+idx+'">'+html+'</div>');
-  }
-  if(trip.welcome){
-    addSection('Welcome','<p class="sttl">Welcome</p><p style="font-size:15px;line-height:1.9;max-width:600px">'+trip.welcome+'</p>');
-  }
+  var tabs=[],sections=[];
+  function addSec(label,html){var idx=tabs.length;tabs.push(label);sections.push('<div class="sec'+(idx===0?' active':'')+'" id="s'+idx+'">'+html+'</div>');}
+  if(trip.welcome)addSec('Welcome','<p class="sttl">Welcome</p><p style="font-size:15px;line-height:1.9;max-width:600px">'+trip.welcome+'</p>');
   if(trip.days&&trip.days.length){
     var pills='';
-    if(trip.days.length>1){
-      pills='<div class="dpills">';
-      for(var di=0;di<trip.days.length;di++){pills+='<div class="dpill'+(di===0?' active':'')+'" onclick="goDay('+di+',this)">Day '+(di+1)+'</div>';}
-      pills+='</div>';
-    }
+    if(trip.days.length>1){pills='<div class="dpills">';for(var di=0;di<trip.days.length;di++){pills+='<div class="dpill'+(di===0?' active':'')+'" onclick="goDay('+di+',this)">Day '+(di+1)+'</div>';}pills+='</div>';}
     var body='<p class="sttl">Day by Day Itinerary</p>'+pills;
     for(var di=0;di<trip.days.length;di++){
       var d=trip.days[di];
       body+='<div class="dayb" id="day'+di+'"><div class="dayhd"><span class="dnum">'+String(di+1)+'</span><div><div class="dtit">'+(d.title||'Day '+(di+1))+'</div><div class="ddt">'+(d.date||'')+'</div></div></div>';
       var acts=d.activities||[];
       for(var ai=0;ai<acts.length;ai++){
-        var a=acts[ai];
-        var mid='m'+di+'_'+ai;
+        var a=acts[ai];var mid='m'+di+'_'+ai;
         body+='<div class="ac">'+(a.photo?'<img src="'+a.photo+'" style="width:100%;height:200px;object-fit:cover;display:block" alt=""/>':'')+
           '<div class="acb">'+(a.time?'<div class="atm">'+a.time+'</div>':'')+
-          '<div class="atl">'+(a.title||'')+'</div>'+
-          (a.desc?'<div class="ads">'+a.desc+'</div>':'')+
+          '<div class="atl">'+(a.title||'')+'</div>'+(a.desc?'<div class="ads">'+a.desc+'</div>':'')+
           (a.mapQuery?'<button class="mbt" onclick="tMap(\''+mid+'\',this)">View on Map</button><iframe id="'+mid+'" class="mfr" src="" data-src="https://maps.google.com/maps?q='+encodeURIComponent(a.mapQuery)+'&output=embed&z=15" allowfullscreen loading="lazy"></iframe>':'')+
           '</div></div>';
       }
       body+='</div>';
     }
-    addSection('Itinerary',body);
+    addSec('Itinerary',body);
   }
-  // Packing - always show
   var packBody='<p class="sttl">Packing Checklist</p>';
-  if(!trip.packing||!trip.packing.length){
-    packBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Packing list coming soon.</p>';
-  }else{
-    var bc={};
-    for(var i=0;i<trip.packing.length;i++){var cat=trip.packing[i].category||'General';if(!bc[cat])bc[cat]=[];bc[cat].push(trip.packing[i].label);}
-    var cats=Object.keys(bc);
-    for(var ci=0;ci<cats.length;ci++){
-      packBody+='<div style="margin-bottom:22px"><p style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#808080;margin-bottom:9px">'+cats[ci]+'</p>';
-      for(var ii=0;ii<bc[cats[ci]].length;ii++){packBody+='<div class="pi" onclick="this.classList.toggle(\'chk\')"><div class="pk"></div><span class="pkl">'+bc[cats[ci]][ii]+'</span></div>';}
-      packBody+='</div>';
-    }
-  }
-  addSection('Packing',packBody);
-  // Info - always show
+  if(!trip.packing||!trip.packing.length){packBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
+  else{var bc={};for(var i=0;i<trip.packing.length;i++){var cat=trip.packing[i].category||'General';if(!bc[cat])bc[cat]=[];bc[cat].push(trip.packing[i].label);}var cats=Object.keys(bc);for(var ci=0;ci<cats.length;ci++){packBody+='<div style="margin-bottom:22px"><p style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#808080;margin-bottom:9px">'+cats[ci]+'</p>';for(var ii=0;ii<bc[cats[ci]].length;ii++){packBody+='<div class="pi" onclick="this.classList.toggle(\'chk\')"><div class="pk"></div><span class="pkl">'+bc[cats[ci]][ii]+'</span></div>';}packBody+='</div>';}}
+  addSec('Packing',packBody);
   var infoBody='<p class="sttl">General Information</p>';
-  if(!trip.info||!trip.info.length){infoBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">General info coming soon.</p>';}
+  if(!trip.info||!trip.info.length){infoBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
   else{for(var i=0;i<trip.info.length;i++){infoBody+='<div class="ic"><h4>'+(trip.info[i].title||'')+'</h4><p>'+(trip.info[i].content||'')+'</p></div>';}}
-  addSection('General Info',infoBody);
-  // Docs - always show
+  addSec('General Info',infoBody);
   var docsBody='<p class="sttl">Documents</p>';
-  if(!trip.docs||!trip.docs.length){docsBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Documents coming soon.</p>';}
-  else{for(var i=0;i<trip.docs.length;i++){var doc=trip.docs[i];var href=doc.type==='pdf'?doc.data:doc.url||'#';docsBody+='<a class="dc" href="'+href+'" target="_blank"><div class="dico">'+(doc.type==='pdf'?'PDF':'LINK')+'</div><div><div style="font-size:13px;font-weight:400">'+(doc.label||doc.name||'Document')+'</div><div style="font-size:10px;color:#B0B0B0">Tap to open</div></div><span style="color:#5B2D8E;margin-left:auto">&#8594;</span></a>';}}
-  addSection('Documents',docsBody);
-  // City guide - always show
+  if(!trip.docs||!trip.docs.length){docsBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
+  else{for(var i=0;i<trip.docs.length;i++){var doc=trip.docs[i];var href=doc.type==='pdf'?doc.data:doc.url||'#';docsBody+='<a class="dc" href="'+href+'" target="_blank"><div class="dico">'+(doc.type==='pdf'?'PDF':'LINK')+'</div><div><div style="font-size:13px;font-weight:400">'+(doc.label||doc.name||'Doc')+'</div><div style="font-size:10px;color:#B0B0B0">Tap to open</div></div><span style="color:#5B2D8E;margin-left:auto">&#8594;</span></a>';}}
+  addSec('Documents',docsBody);
   var cityBody='<p class="sttl">City Guide</p>';
-  if(!trip.cityGuide||!trip.cityGuide.length){cityBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">City guide coming soon.</p>';}
-  else{
-    cityBody+='<div class="cgg">';
-    for(var i=0;i<trip.cityGuide.length;i++){
-      var city=trip.cityGuide[i];
-      var tips=(city.tips||'').split('\n');
-      var tipsHtml='';
-      for(var ti=0;ti<tips.length;ti++){if(tips[ti].trim())tipsHtml+='<li>'+tips[ti]+'</li>';}
-      cityBody+='<div class="cgc"><div class="cgi">'+(city.imgData?'<img src="'+city.imgData+'" style="width:100%;height:100%;object-fit:cover" alt=""/>':'<span style="color:rgba(255,255,255,.5);font-size:11px">'+(city.name||'')+'</span>')+'</div><div class="cgb"><h4>'+(city.name||'')+'</h4><ul class="cgt">'+tipsHtml+'</ul></div></div>';
-    }
-    cityBody+='</div>';
-  }
-  addSection('City Guide',cityBody);
-
-  var navItems='';
-  for(var i=0;i<tabs.length;i++){navItems+='<div class="ni'+(i===0?' active':'')+'" onclick="goTab('+i+',this)">'+tabs[i]+'</div>';}
-
+  if(!trip.cityGuide||!trip.cityGuide.length){cityBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
+  else{cityBody+='<div class="cgg">';for(var i=0;i<trip.cityGuide.length;i++){var city=trip.cityGuide[i];var tips=(city.tips||'').split('\n');var th='';for(var ti=0;ti<tips.length;ti++){if(tips[ti].trim())th+='<li>'+tips[ti]+'</li>';}cityBody+='<div class="cgc"><div class="cgi">'+(city.imgData?'<img src="'+city.imgData+'" style="width:100%;height:100%;object-fit:cover" alt=""/>':'<span style="color:rgba(255,255,255,.5);font-size:11px">'+(city.name||'')+'</span>')+'</div><div class="cgb"><h4>'+(city.name||'')+'</h4><ul class="cgt">'+th+'</ul></div></div>';}cityBody+='</div>';}
+  addSec('City Guide',cityBody);
+  var navItems='';for(var i=0;i<tabs.length;i++){navItems+='<div class="ni'+(i===0?' active':'')+'" onclick="goTab('+i+',this)">'+tabs[i]+'</div>';}
   var clientBlock='';
-  if(trip.clientLogo){clientBlock='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block;margin:0 auto 14px" alt="'+(trip.clientName||'')+'"/>';}
-  else if(trip.clientName){clientBlock='<div style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300;margin-bottom:14px">'+trip.clientName+'</div>';}
-
-  var contactPhone=(trip.contactPhone||'').replace(/\s+/g,'');
-  var contactBtn='';
-  if(contactPhone){
-    contactBtn='<a href="https://wa.me/'+contactPhone.replace('+','')+'" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25D366;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">Message Liaisons Team</a>';
-  }else{
-    contactBtn='<a href="mailto:liaisonstravel@liaisonscorporation.com" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#5B2D8E;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">Message Liaisons Team</a>';
-  }
-
+  if(trip.clientLogo)clientBlock='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block;margin:0 auto 14px" alt=""/>';
+  else if(trip.clientName)clientBlock='<div style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300;margin-bottom:14px">'+trip.clientName+'</div>';
+  var phone=(trip.contactPhone||'').replace(/\s+/g,'');
+  var contactBtn=phone?'<a href="https://wa.me/'+phone.replace('+','')+'" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25D366;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">Message Liaisons Team</a>':'<a href="mailto:liaisonstravel@liaisonscorporation.com" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#5B2D8E;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">Message Liaisons Team</a>';
   var daysJSON=JSON.stringify(trip.days||[]);
-
-  return '<!DOCTYPE html><html><head>'+
-'<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>'+
-'<title>'+(trip.name||'My Trip')+'</title>'+
-'<style>'+
-'*{margin:0;padding:0;box-sizing:border-box}'+
-'body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#fff;color:#2D2D2D}'+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>'+(trip.name||'My Trip')+'</title><style>'+
+'*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#fff;color:#2D2D2D}'+
 '.hero{position:relative;height:75vh;min-height:360px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}'+
-'.hbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}'+
-'.hdk{position:absolute;inset:0;background:rgba(0,0,0,.32)}'+
+'.hbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}.hdk{position:absolute;inset:0;background:rgba(0,0,0,.32)}'+
 '.hov{position:relative;z-index:2;text-align:center;padding:24px;width:100%;display:flex;flex-direction:column;align-items:center}'+
 '.htl{color:#fff;font-size:clamp(20px,5vw,52px);font-weight:100;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}'+
 '.hmt{color:rgba(255,255,255,.75);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:22px}'+
 '.hlt{opacity:.6;margin-top:10px}'+
-'nav{position:sticky;top:0;background:#fff;border-bottom:1px solid #E0E0E0;display:flex;overflow-x:auto;z-index:100;scrollbar-width:none}'+
-'nav::-webkit-scrollbar{display:none}'+
+'nav{position:sticky;top:0;background:#fff;border-bottom:1px solid #E0E0E0;display:flex;overflow-x:auto;z-index:100;scrollbar-width:none}nav::-webkit-scrollbar{display:none}'+
 '.ni{padding:14px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;white-space:nowrap;color:#B0B0B0;border-bottom:2px solid transparent;flex-shrink:0}'+
 '.ni.active{color:#5B2D8E;border-bottom-color:#5B2D8E}'+
-'.sec{display:none;max-width:860px;margin:0 auto;padding:44px 24px}'+
-'.sec.active{display:block}'+
+'.sec{display:none;max-width:860px;margin:0 auto;padding:44px 24px}.sec.active{display:block}'+
 '.sttl{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#808080;margin-bottom:28px;padding-bottom:9px;border-bottom:1px solid #E0E0E0}'+
-'.dpills{display:flex;gap:7px;overflow-x:auto;padding-bottom:13px;margin-bottom:16px;scrollbar-width:none}'+
-'.dpills::-webkit-scrollbar{display:none}'+
+'.dpills{display:flex;gap:7px;overflow-x:auto;padding-bottom:13px;margin-bottom:16px;scrollbar-width:none}.dpills::-webkit-scrollbar{display:none}'+
 '.dpill{flex-shrink:0;padding:5px 14px;border:1px solid #E0E0E0;border-radius:20px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#808080;cursor:pointer;white-space:nowrap}'+
 '.dpill.active{background:#5B2D8E;border-color:#5B2D8E;color:#fff}'+
-'.dayb{margin-bottom:40px;scroll-margin-top:70px}'+
-'.dayhd{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}'+
-'.dnum{font-size:28px;font-weight:100;color:#5B2D8E;line-height:1}'+
-'.dtit{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:300}'+
-'.ddt{font-size:11px;color:#B0B0B0}'+
-'.ac{border:1px solid #E0E0E0;margin-bottom:12px;overflow:hidden}'+
-'.acb{padding:13px}'+
+'.dayb{margin-bottom:40px;scroll-margin-top:70px}.dayhd{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}'+
+'.dnum{font-size:28px;font-weight:100;color:#5B2D8E;line-height:1}.dtit{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:300}.ddt{font-size:11px;color:#B0B0B0}'+
+'.ac{border:1px solid #E0E0E0;margin-bottom:12px;overflow:hidden}.acb{padding:13px}'+
 '.atm{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5B2D8E;margin-bottom:2px}'+
-'.atl{font-size:14px;font-weight:400;margin-bottom:3px}'+
-'.ads{font-size:12px;color:#808080;line-height:1.6;margin-bottom:9px}'+
+'.atl{font-size:14px;font-weight:400;margin-bottom:3px}.ads{font-size:12px;color:#808080;line-height:1.6;margin-bottom:9px}'+
 '.mbt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#5B2D8E;background:none;border:none;cursor:pointer;padding:0;font-family:inherit}'+
-'.mfr{width:100%;height:240px;border:none;display:none;margin-top:7px}'+
-'.mfr.open{display:block}'+
-'.pi{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #E0E0E0;cursor:pointer}'+
-'.pi:last-child{border-bottom:none}'+
+'.mfr{width:100%;height:240px;border:none;display:none;margin-top:7px}.mfr.open{display:block}'+
+'.pi{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #E0E0E0;cursor:pointer}.pi:last-child{border-bottom:none}'+
 '.pk{width:17px;height:17px;border:1px solid #E0E0E0;flex-shrink:0;display:flex;align-items:center;justify-content:center}'+
-'.pi.chk .pk{background:#5B2D8E;border-color:#5B2D8E}'+
-'.pi.chk .pk::after{content:"\\2713";color:#fff;font-size:10px}'+
-'.pi.chk .pkl{color:#B0B0B0;text-decoration:line-through}'+
-'.pkl{font-size:13px;font-weight:300}'+
-'.ic{border:1px solid #E0E0E0;padding:20px;margin-bottom:13px}'+
-'.ic h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5B2D8E;margin-bottom:9px}'+
-'.ic p{font-size:13px;line-height:1.7;white-space:pre-wrap}'+
+'.pi.chk .pk{background:#5B2D8E;border-color:#5B2D8E}.pi.chk .pk::after{content:"\\2713";color:#fff;font-size:10px}'+
+'.pi.chk .pkl{color:#B0B0B0;text-decoration:line-through}.pkl{font-size:13px;font-weight:300}'+
+'.ic{border:1px solid #E0E0E0;padding:20px;margin-bottom:13px}.ic h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5B2D8E;margin-bottom:9px}.ic p{font-size:13px;line-height:1.7;white-space:pre-wrap}'+
 '.dc{display:flex;align-items:center;gap:13px;padding:13px 16px;border:1px solid #E0E0E0;margin-bottom:9px;text-decoration:none;color:#2D2D2D}'+
 '.dico{width:36px;height:36px;background:#F5F5F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:400;letter-spacing:.05em}'+
-'.cgg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}'+
-'.cgc{border:1px solid #E0E0E0;overflow:hidden}'+
+'.cgg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}.cgc{border:1px solid #E0E0E0;overflow:hidden}'+
 '.cgi{height:130px;background:linear-gradient(135deg,#5B2D8E,#3a1a5e);display:flex;align-items:center;justify-content:center;overflow:hidden}'+
-'.cgb{padding:13px}'+
-'.cgb h4{font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px}'+
-'.cgt{list-style:none}'+
-'.cgt li{font-size:12px;padding:4px 0;border-bottom:1px solid #E0E0E0}'+
-'.cgt li:last-child{border-bottom:none}'+
-'.cgt li::before{content:"-- ";color:#5B2D8E}'+
-'footer{text-align:center;padding:36px 24px;border-top:1px solid #E0E0E0}'+
-'footer a{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#808080;text-decoration:none;margin:0 10px}'+
+'.cgb{padding:13px}.cgb h4{font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px}'+
+'.cgt{list-style:none}.cgt li{font-size:12px;padding:4px 0;border-bottom:1px solid #E0E0E0}.cgt li:last-child{border-bottom:none}.cgt li::before{content:"- ";color:#5B2D8E}'+
+'footer{text-align:center;padding:36px 24px;border-top:1px solid #E0E0E0}footer a{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#808080;text-decoration:none;margin:0 10px}'+
 '</style></head><body>'+
-'<div class="hero">'+
-(trip.heroImg?'<img class="hbg" src="'+trip.heroImg+'" alt=""/>':'')+
-'<div class="hdk"></div>'+
-'<div class="hov">'+clientBlock+
+'<div class="hero">'+(trip.heroImg?'<img class="hbg" src="'+trip.heroImg+'" alt=""/>':'')+
+'<div class="hdk"></div><div class="hov">'+clientBlock+
 '<div class="htl">'+(trip.name||'')+'</div>'+
 '<div class="hmt">'+[trip.destinations,trip.dates].filter(Boolean).join(' - ')+'</div>'+
 '<div class="hlt"><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:13px;width:auto">'+
 '<text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="white">LIAISONS</text>'+
 '<text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="rgba(255,255,255,.8)">TRAVEL</text>'+
 '</svg></div></div></div>'+
-'<nav>'+navItems+'</nav>'+
-'<div id="secs">'+sections.join('')+'</div>'+
-contactBtn+
+'<nav>'+navItems+'</nav><div id="secs">'+sections.join('')+'</div>'+contactBtn+
 '<footer>'+
 '<svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:14px;width:auto;display:block;margin:0 auto 11px">'+
 '<text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>'+
 '<text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#808080">TRAVEL</text>'+
-'</svg>'+
-'<p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0;margin-bottom:12px">ART - TRAVEL - CULTURE - LIFESTYLE</p>'+
+'</svg><p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0;margin-bottom:12px">ART - TRAVEL - CULTURE - LIFESTYLE</p>'+
 '<a href="https://www.liaisonstravel.com" target="_blank">liaisonstravel.com</a>'+
 '<a href="https://www.instagram.com/liaisonstravel/" target="_blank">@liaisonstravel</a>'+
 '</footer>'+
 '<script>'+
-'function goTab(idx,el){'+
-'  var nis=document.querySelectorAll(".ni");'+
-'  for(var i=0;i<nis.length;i++)nis[i].classList.remove("active");'+
-'  var secs=document.querySelectorAll(".sec");'+
-'  for(var i=0;i<secs.length;i++)secs[i].classList.remove("active");'+
-'  el.classList.add("active");'+
-'  var sec=document.getElementById("s"+idx);'+
-'  if(sec){sec.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}'+
-'}'+
-'function goDay(idx,pill){'+
-'  var pills=document.querySelectorAll(".dpill");'+
-'  for(var i=0;i<pills.length;i++)pills[i].classList.remove("active");'+
-'  pill.classList.add("active");'+
-'  var b=document.getElementById("day"+idx);'+
-'  if(b)b.scrollIntoView({behavior:"smooth",block:"start"});'+
-'}'+
-'function tMap(id,btn){'+
-'  var f=document.getElementById(id);if(!f)return;'+
-'  var open=f.classList.toggle("open");'+
-'  if(open&&f.dataset.src&&!f.src)f.src=f.dataset.src;'+
-'  btn.textContent=open?"Hide Map":"View on Map";'+
-'}'+
-'(function(){'+
-'  var days='+daysJSON+';'+
-'  if(!days.length)return;'+
-'  var today=new Date();today.setHours(0,0,0,0);'+
-'  var todayIdx=0;'+
-'  for(var i=0;i<days.length;i++){'+
-'    if(!days[i].date)continue;'+
-'    var p=new Date(days[i].date);'+
-'    if(isNaN(p.getTime()))continue;'+
-'    p.setHours(0,0,0,0);'+
-'    if(p.getTime()===today.getTime()){todayIdx=i;break;}'+
-'  }'+
-'  setTimeout(function(){'+
-'    var pill=document.querySelectorAll(".dpill")[todayIdx];'+
-'    var block=document.getElementById("day"+todayIdx);'+
-'    if(pill){var pills=document.querySelectorAll(".dpill");for(var i=0;i<pills.length;i++)pills[i].classList.remove("active");pill.classList.add("active");}'+
-'    if(block){'+
-'      block.style.borderLeft="3px solid #5B2D8E";block.style.paddingLeft="12px";'+
-'      var badge=document.createElement("span");badge.textContent="TODAY";'+
-'      badge.style.cssText="display:inline-block;background:#5B2D8E;color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";'+
-'      var titleEl=block.querySelector(".dtit");'+
-'      if(titleEl)titleEl.appendChild(badge);'+
-'      var nis=document.querySelectorAll(".ni");'+
-'      for(var i=0;i<nis.length;i++){if(nis[i].textContent.trim()==="Itinerary")goTab(i,nis[i]);}'+
-'      block.scrollIntoView({behavior:"smooth",block:"start"});'+
-'    }'+
-'  },600);'+
-'})();'+
-'(function(){'+
-'  if(!("Notification" in window))return;'+
-'  var days='+daysJSON+';'+
-'  if(!days.length)return;'+
-'  function scheduleAll(){'+
-'    var now=Date.now();'+
-'    for(var i=0;i<days.length;i++){'+
-'      if(!days[i].date)continue;'+
-'      var d=new Date(days[i].date);'+
-'      if(isNaN(d.getTime()))continue;'+
-'      d.setHours(8,0,0,0);'+
-'      var delay=d.getTime()-now;'+
-'      if(delay<0)continue;'+
-'      (function(day,idx){'+
-'        setTimeout(function(){'+
-'          if(Notification.permission==="granted"){'+
-'            var acts=day.activities||[];'+
-'            var body=acts.length>0?"First up: "+acts[0].title+(acts[0].time?" at "+acts[0].time:""):"Check your itinerary for today.";'+
-'            new Notification("Day "+(idx+1)+" - "+day.title,{body:body});'+
-'          }'+
-'        },delay);'+
-'      })(days[i],i);'+
-'    }'+
-'  }'+
-'  if(Notification.permission==="granted"){scheduleAll();}'+
-'  else if(Notification.permission!=="denied"){'+
-'    var banner=document.createElement("div");'+
-'    banner.style.cssText="position:fixed;top:56px;left:0;right:0;background:#5B2D8E;color:#fff;padding:10px 18px;display:flex;align-items:center;justify-content:space-between;z-index:200";'+
-'    var msg=document.createElement("span");msg.style.fontSize="12px";msg.textContent="Get daily reminders for your trip";'+
-'    var btnWrap=document.createElement("div");btnWrap.style.cssText="display:flex;gap:8px";'+
-'    var yesB=document.createElement("button");yesB.textContent="Enable";yesB.style.cssText="background:#fff;color:#5B2D8E;border:none;padding:5px 12px;font-size:10px;cursor:pointer";'+
-'    yesB.onclick=function(){Notification.requestPermission().then(function(p){if(p==="granted")scheduleAll();});banner.remove();};'+
-'    var noB=document.createElement("button");noB.textContent="Not now";noB.style.cssText="background:transparent;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.4);padding:5px 10px;font-size:10px;cursor:pointer";'+
-'    noB.onclick=function(){banner.remove();};'+
-'    btnWrap.appendChild(yesB);btnWrap.appendChild(noB);'+
-'    banner.appendChild(msg);banner.appendChild(btnWrap);'+
-'    document.body.appendChild(banner);'+
-'  }'+
-'})();'+
+'function goTab(idx,el){var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++)ns[i].classList.remove("active");var ss=document.querySelectorAll(".sec");for(var i=0;i<ss.length;i++)ss[i].classList.remove("active");el.classList.add("active");var s=document.getElementById("s"+idx);if(s){s.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}}'+
+'function goDay(idx,pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");var b=document.getElementById("day"+idx);if(b)b.scrollIntoView({behavior:"smooth",block:"start"});}'+
+'function tMap(id,btn){var f=document.getElementById(id);if(!f)return;var open=f.classList.toggle("open");if(open&&f.dataset.src&&!f.src)f.src=f.dataset.src;btn.textContent=open?"Hide Map":"View on Map";}'+
+'(function(){var days='+daysJSON+';if(!days.length)return;var today=new Date();today.setHours(0,0,0,0);var idx=0;for(var i=0;i<days.length;i++){if(!days[i].date)continue;var p=new Date(days[i].date);if(isNaN(p.getTime()))continue;p.setHours(0,0,0,0);if(p.getTime()===today.getTime()){idx=i;break;}}'+
+'setTimeout(function(){var pill=document.querySelectorAll(".dpill")[idx];var block=document.getElementById("day"+idx);'+
+'if(pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");}'+
+'if(block){block.style.borderLeft="3px solid #5B2D8E";block.style.paddingLeft="12px";var badge=document.createElement("span");badge.textContent="TODAY";badge.style.cssText="display:inline-block;background:#5B2D8E;color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";var te=block.querySelector(".dtit");if(te)te.appendChild(badge);var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++){if(ns[i].textContent.trim()==="Itinerary")goTab(i,ns[i]);}block.scrollIntoView({behavior:"smooth",block:"start"});}},600);})();'+
 '<\/script></body></html>';
 }
 
@@ -1091,18 +755,17 @@ function renderTV(trip){
   var bg=document.getElementById('tvBg');
   if(trip.heroImg){bg.src=trip.heroImg;bg.style.display='block';}else bg.style.display='none';
   document.getElementById('tvTitle').textContent=trip.name||'';
-  document.getElementById('tvMeta').textContent=[trip.destinations,trip.dates].filter(Boolean).join('  -  ');
+  document.getElementById('tvMeta').textContent=[trip.destinations,trip.dates].filter(Boolean).join(' - ');
   var cl=document.getElementById('tvClientLogo');
-  if(trip.clientLogo){cl.innerHTML='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block" alt="'+(trip.clientName||'')+'"/>';cl.style.display='flex';}
+  if(trip.clientLogo){cl.innerHTML='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block" alt=""/>';cl.style.display='flex';}
   else if(trip.clientName){cl.innerHTML='<span style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300">'+trip.clientName+'</span>';cl.style.display='flex';}
   else{cl.innerHTML='';cl.style.display='none';}
   var secs=document.getElementById('tvSecs');
-  secs.innerHTML='<iframe id="tvFrame" src="about:blank" style="width:100%;height:100vh;border:none;display:block" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>';
+  secs.innerHTML='<iframe src="about:blank" style="width:100%;height:100vh;border:none;display:block" sandbox="allow-scripts allow-same-origin allow-popups" id="tvFrame"></iframe>';
   document.getElementById('tvNav').innerHTML='';
   document.getElementById('tvFrame').srcdoc=buildHTML(trip);
 }
 
-window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
 function checkHash(){
   var h=window.location.hash;
   if(h.indexOf('#trip/')===0){
@@ -1110,31 +773,27 @@ function checkHash(){
     var keys=Object.keys(trips);
     for(var i=0;i<keys.length;i++){
       var t=trips[keys[i]];
-      if(t.code&&t.code.toLowerCase()===code){renderTV(t);sv('tvView');return;}
+      if(t.code&&t.code.toLowerCase()===code){renderTV(t);showScreen('sTraveler');return;}
     }
   }
 }
 window.addEventListener('hashchange',checkHash);
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
 
 load();
 checkHash();
 
-document.getElementById('loginBtn').addEventListener('click', function(){
-  doLogin();
-});
-
-// Wire all buttons
 document.getElementById('loginBtn').addEventListener('click',doLogin);
 document.getElementById('loginPass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
 document.getElementById('travBtn').addEventListener('click',loadTraveler);
 document.getElementById('travCode').addEventListener('keydown',function(e){if(e.key==='Enter')loadTraveler();});
-document.getElementById('logoutBtn').addEventListener('click',logout);
+document.getElementById('logoutBtn').addEventListener('click',doLogout);
 document.getElementById('edCloseBtn').addEventListener('click',closeEditor);
 document.getElementById('edCancelBtn').addEventListener('click',closeEditor);
 document.getElementById('saveTripBtn').addEventListener('click',saveTrip);
-document.getElementById('closeMobileBtn').addEventListener('click',closePrev);
-document.getElementById('closeDeskBtn').addEventListener('click',closeDeskPrev);
-document.getElementById('tvBackBtn').addEventListener('click',showLogin);
+document.getElementById('closeMobileBtn').addEventListener('click',function(){document.getElementById('prevOverlay').classList.remove('open');document.getElementById('prevFrame').srcdoc='';});
+document.getElementById('closeDeskBtn').addEventListener('click',function(){document.getElementById('deskOverlay').classList.remove('open');document.getElementById('deskFrame').srcdoc='';});
+document.getElementById('tvBackBtn').addEventListener('click',function(){showScreen('sLogin');});
 document.getElementById('pasteBtn').addEventListener('click',function(){document.getElementById('pasteArea').style.display='block';});
 document.getElementById('cancelPasteBtn').addEventListener('click',function(){document.getElementById('pasteArea').style.display='none';});
 document.getElementById('genBtn').addEventListener('click',runAIText);
@@ -1146,14 +805,8 @@ document.getElementById('addDocLinkBtn').addEventListener('click',function(){eDo
 document.getElementById('addCityBtn').addEventListener('click',function(){eCity.push({name:'',imgData:null,tips:''});renderCity();});
 document.getElementById('copyLinkBtn').addEventListener('click',function(){var l=document.getElementById('shareLink');l.select();document.execCommand('copy');alert('Copied!');});
 document.getElementById('instNoBtn').addEventListener('click',function(){document.getElementById('instBanner').classList.remove('show');});
-document.getElementById('instYesBtn').addEventListener('click',function(){
-  if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(function(){deferredPrompt=null;document.getElementById('instBanner').classList.remove('show');});}
-  else{alert('iOS: Share then Add to Home Screen\nAndroid: Menu then Add to Home Screen');document.getElementById('instBanner').classList.remove('show');}
-});
-document.getElementById('editorTabs').addEventListener('click',function(e){
-  var tab=e.target.closest('.ftab');
-  if(tab)switchTab(tab.getAttribute('data-tab'));
-});
+document.getElementById('instYesBtn').addEventListener('click',function(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(function(){deferredPrompt=null;document.getElementById('instBanner').classList.remove('show');});}else{alert('iOS: Share then Add to Home Screen');}});
+document.getElementById('editorTabs').addEventListener('click',function(e){var tab=e.target.closest('.ftab');if(tab)switchTab(tab.getAttribute('data-tab'));});
 </script>
 </body>
 </html>
