@@ -138,7 +138,8 @@ p,li,input,textarea{font-weight:300;font-size:14px;line-height:1.7}
 </head>
 <body>
 
-<div id="loginView" class="view active">
+<!-- LOGIN OVERLAY (fixed, on top of everything) -->
+<div id="loginView" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center">
   <div class="lbox">
     <svg viewBox="0 0 320 28" xmlns="http://www.w3.org/2000/svg" style="height:26px;width:auto;display:block;margin:0 auto">
       <text x="0" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>
@@ -348,15 +349,25 @@ function load(){
   }catch(e){}
 }
 function sv(id){
+  // Login is a fixed overlay — just show/hide it
+  var login=document.getElementById('loginView');
+  if(id==='loginView'){
+    login.style.display='flex';
+  } else {
+    login.style.display='none';
+  }
+  // For other views, use class switching
   var views=document.querySelectorAll('.view');
   for(var i=0;i<views.length;i++){
     views[i].classList.remove('active');
     views[i].style.display='none';
   }
-  var target=document.getElementById(id);
-  if(target){
-    target.classList.add('active');
-    target.style.display=(id==='loginView')?'flex':'block';
+  if(id!=='loginView'){
+    var target=document.getElementById(id);
+    if(target){
+      target.classList.add('active');
+      target.style.display='block';
+    }
   }
   window.scrollTo(0,0);
 }
