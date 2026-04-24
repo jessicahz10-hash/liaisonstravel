@@ -4,50 +4,66 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>LIAISONS TRAVEL</title>
+<script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js" crossorigin="anonymous"></script>
+<script>
+// Fallback CDN if primary fails
+if(typeof msal==='undefined'){
+  document.write('<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.1/lib/msal-browser.min.js"><\/script>');
+}
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--purple:#5B2D8E;--pl:#7B4DB0;--gray:#808080;--gl:#B0B0B0;--bg:#F5F5F5;--dark:#2D2D2D;--w:#FFF;--b:#E0E0E0}
 body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w);color:var(--dark);margin:0;padding:0}
-/* APP SHELL - only one thing visible at a time */
 #app{position:relative;width:100%;min-height:100vh}
 .screen{display:none;width:100%;min-height:100vh}
 .screen.on{display:block}
-/* LOGIN */
 #sLogin{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}
 #sLogin.on{display:flex}
-.lbox{text-align:center;padding:56px 36px;max-width:400px;width:100%}
+.lbox{text-align:center;padding:56px 36px;max-width:420px;width:100%}
 .lsep{width:36px;height:1px;background:var(--purple);margin:10px auto 36px}
-.lerr{color:#c0392b;font-size:12px;margin-bottom:12px;min-height:16px}
-/* BUTTONS */
-.bp{background:var(--purple);color:#fff;border:none;padding:12px 32px;letter-spacing:.15em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%}
+.bp{background:var(--purple);color:#fff;border:none;padding:12px 32px;letter-spacing:.15em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%;transition:background .2s}
 .bp:hover{background:var(--pl)}
-.bs{background:transparent;color:var(--purple);border:1px solid var(--purple);padding:9px 20px;letter-spacing:.12em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%}
+.bs{background:transparent;color:var(--purple);border:1px solid var(--purple);padding:9px 20px;letter-spacing:.12em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit}
 .bs:hover{background:var(--purple);color:#fff}
 .bg{background:transparent;color:var(--gray);border:1px solid var(--b);padding:7px 16px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit}
 .bg:hover{border-color:var(--gray)}
 .bd{background:transparent;color:#c0392b;border:1px solid #c0392b;padding:7px 13px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit}
 .bai{background:#f3eefa;color:var(--purple);border:1px solid var(--purple);padding:8px 16px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px}
 .bai:hover{background:var(--purple);color:#fff}
+/* STATUS BADGES */
+.status{font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:20px;font-weight:400}
+.status.draft{background:#f5f5f5;color:#808080;border:1px solid #e0e0e0}
+.status.pending{background:#fff8e6;color:#e6a817;border:1px solid #f0d080}
+.status.active{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+.status.completed{background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da}
+.status.archived{background:#f5f5f5;color:#b0b0b0;border:1px solid #e0e0e0}
 /* DASHBOARD */
 #sDash{background:var(--bg)}
 .dh{background:var(--w);border-bottom:1px solid var(--b);padding:16px 36px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .db{max-width:1100px;margin:0 auto;padding:40px 22px}
-.dbt{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gray);margin-bottom:24px}
-.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
-.tc{background:var(--w);border:1px solid var(--b);overflow:hidden}
+.dbt{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gray);margin-bottom:8px}
+/* FILTER BAR */
+.filter-bar{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap;align-items:center}
+.fbtn{background:transparent;border:1px solid var(--b);padding:5px 14px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:var(--gray);border-radius:20px}
+.fbtn.active{background:var(--purple);border-color:var(--purple);color:#fff}
+.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:20px}
+.tc{background:var(--w);border:1px solid var(--b);overflow:hidden;transition:box-shadow .2s}
+.tc:hover{box-shadow:0 4px 18px rgba(0,0,0,.07)}
 .tch{height:148px;background:linear-gradient(135deg,var(--purple),#3a1a5e);position:relative;overflow:hidden}
 .tch img{width:100%;height:100%;object-fit:cover}
 .tco{position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;flex-direction:column;justify-content:flex-end;padding:12px}
 .tco h3{color:#fff;font-size:12px;letter-spacing:.14em;font-weight:300;text-transform:uppercase}
 .tco p{color:rgba(255,255,255,.72);font-size:10px}
 .tcb{padding:12px}
-.tmeta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.tmeta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
 .badge{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border:1px solid var(--b);color:var(--gray)}
 .tact{display:flex;gap:5px;flex-wrap:wrap}
 .ntc{border:1px dashed var(--b);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;cursor:pointer;background:var(--w);gap:9px;color:var(--gl)}
 .ntc:hover{border-color:var(--purple);color:var(--purple)}
 .ntc .plus{font-size:28px;font-weight:100}
 .ntc span{font-size:10px;letter-spacing:.15em;text-transform:uppercase}
+.section-label{grid-column:1/-1;padding:20px 0 8px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gl);border-top:1px solid var(--b);margin-top:8px}
 /* MODAL */
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto}
 .mo.open{display:flex;align-items:flex-start;justify-content:center;padding:18px}
@@ -56,7 +72,7 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 .mh h2{font-size:12px;letter-spacing:.2em;font-weight:300;text-transform:uppercase}
 .mcl{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray)}
 .mb{padding:26px}
-.mf{padding:16px 26px;border-top:1px solid var(--b);display:flex;justify-content:flex-end;gap:9px}
+.mf{padding:16px 26px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;gap:9px}
 .fg{margin-bottom:20px}
 .fl{display:block;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);margin-bottom:7px}
 .fi{width:100%;border:none;border-bottom:1px solid var(--b);padding:8px 0;font-size:14px;font-weight:300;outline:none;background:transparent;font-family:inherit}
@@ -64,6 +80,7 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 .fta{width:100%;border:1px solid var(--b);padding:9px 11px;font-size:14px;font-weight:300;outline:none;resize:vertical;min-height:80px;font-family:inherit}
 .fta:focus{border-color:var(--purple)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.fsel{width:100%;border:none;border-bottom:1px solid var(--b);padding:8px 0;font-size:14px;font-weight:300;outline:none;background:transparent;font-family:inherit;color:var(--dark)}
 .ftabs{display:flex;border-bottom:1px solid var(--b);margin-bottom:22px;overflow-x:auto}
 .ftab{padding:10px 16px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:var(--gl);font-family:inherit}
 .ftab.active{color:var(--purple);border-bottom-color:var(--purple)}
@@ -104,7 +121,11 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 .lkbox{background:var(--bg);border:1px solid var(--b);padding:10px 13px;display:flex;align-items:center;gap:9px;margin-top:12px}
 .lkbox input{flex:1;background:transparent;border:none;font-size:13px;color:var(--purple);outline:none;font-family:inherit}
 .lkcopy{background:var(--purple);color:#fff;border:none;padding:6px 13px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit}
-/* PHONE PREVIEW */
+/* LOADING */
+.loading{display:flex;align-items:center;gap:10px;padding:40px;color:var(--gl);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.spinner{width:20px;height:20px;border:2px solid var(--b);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* PREVIEWS */
 .pvo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:2000;align-items:center;justify-content:center;flex-direction:column;gap:16px}
 .pvo.open{display:flex}
 .pvcl{color:#fff;background:none;border:1px solid rgba(255,255,255,.3);padding:7px 18px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;font-family:inherit}
@@ -112,7 +133,6 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 .pshell::before{content:'';position:absolute;top:11px;left:50%;transform:translateX(-50%);width:100px;height:28px;background:#111;border-radius:0 0 16px 16px;z-index:5}
 .pscreen{width:100%;height:100%;border-radius:40px;overflow:hidden;background:#fff}
 .pscreen iframe{width:375px;height:698px;border:none;display:block}
-/* DESKTOP PREVIEW */
 #deskOverlay{display:none;position:fixed;inset:0;z-index:3000;background:#fff;flex-direction:column}
 #deskOverlay.open{display:flex}
 /* TRAVELER */
@@ -154,14 +174,12 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
     </svg>
     <p style="color:var(--gl);letter-spacing:.2em;font-size:10px;text-transform:uppercase;margin-top:8px">Trip Management Platform</p>
     <div class="lsep"></div>
-    <input type="password" id="loginPass" placeholder="PM access code" style="width:100%;border:none;border-bottom:1px solid var(--b);padding:10px 0;font-size:15px;font-weight:300;outline:none;font-family:inherit"/>
-    <div class="lerr" id="loginErr"></div>
-    <button class="bp" id="loginBtn" style="margin-top:12px">Access Dashboard</button>
-    <div style="margin-top:26px;padding-top:20px;border-top:1px solid var(--b)">
-      <p style="font-size:10px;color:var(--gl);letter-spacing:.12em;text-transform:uppercase;margin-bottom:11px">Traveler? View Your Trip</p>
-      <input type="text" id="travCode" placeholder="Enter trip code" style="width:100%;border:none;border-bottom:1px solid var(--b);padding:9px 0;font-size:14px;font-weight:300;outline:none;font-family:inherit"/>
-      <button class="bs" id="travBtn" style="margin-top:12px">View My Itinerary</button>
-    </div>
+    <p style="font-size:13px;color:var(--gray);margin-bottom:24px;line-height:1.6">Sign in with your Liaisons Microsoft account to access the dashboard.</p>
+    <button class="bp" id="msLoginBtn" style="display:flex;align-items:center;justify-content:center;gap:12px">
+      <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Sign in with Microsoft
+    </button>
+    <div id="loginErr" style="color:#c0392b;font-size:12px;margin-top:14px;min-height:16px"></div>
   </div>
 </div>
 
@@ -173,17 +191,31 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
       <text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#808080">TRAVEL</text>
     </svg>
     <div style="display:flex;gap:9px;align-items:center">
-      <span style="font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--gl)">PM Dashboard</span>
-      <button class="bg" id="logoutBtn">Logout</button>
+      <span style="font-size:10px;letter-spacing:.1em;color:var(--gl)" id="userLabel"></span>
+      <button class="bg" id="logoutBtn">Sign Out</button>
     </div>
   </div>
   <div class="db">
-    <p class="dbt">All Trips</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <p class="dbt" style="margin-bottom:0">All Trips</p>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="syncStatus" style="font-size:10px;color:var(--gl);letter-spacing:.08em"></span>
+        <button class="bg" id="refreshBtn">↻ Refresh</button>
+      </div>
+    </div>
+    <div class="filter-bar" id="filterBar">
+      <button class="fbtn active" data-filter="all">All</button>
+      <button class="fbtn" data-filter="draft">Draft</button>
+      <button class="fbtn" data-filter="pending">Pending</button>
+      <button class="fbtn" data-filter="active">Active</button>
+      <button class="fbtn" data-filter="completed">Completed</button>
+      <button class="fbtn" data-filter="archived">Archived</button>
+    </div>
     <div class="tg" id="tripsGrid"></div>
   </div>
 </div>
 
-<!-- TRAVELER -->
+<!-- TRAVELER VIEW -->
 <div id="sTraveler" class="screen">
   <div class="tvh">
     <button class="tvback" id="tvBackBtn">Back</button>
@@ -226,7 +258,7 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
         <div style="font-size:19px;margin-top:2px">✨</div>
         <div style="flex:1">
           <p style="font-size:12px;color:var(--purple);margin-bottom:2px;font-weight:400">AI Itinerary Pre-fill</p>
-          <span style="font-size:10px;color:var(--gl)">Upload a PDF or paste text</span>
+          <span style="font-size:10px;color:var(--gl)">Upload a PDF or paste text to auto-populate days</span>
           <div class="aist" id="aiSt"></div>
         </div>
         <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">
@@ -253,14 +285,28 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
         <div class="ftab" data-tab="tCity">City Guide</div>
         <div class="ftab" data-tab="tShare">Share</div>
       </div>
+      <!-- SETUP TAB -->
       <div class="tp active" id="tSetup">
         <div class="fr">
-          <div class="fg"><label class="fl">Trip Name *</label><input class="fi" id="fName" placeholder="e.g. Paris Art Week 2025"/></div>
-          <div class="fg"><label class="fl">Trip Code *</label><input class="fi" id="fCode" placeholder="e.g. paris2025"/></div>
+          <div class="fg"><label class="fl">Trip Name *</label><input class="fi" id="fName" placeholder="e.g. Venice Biennale 2025"/></div>
+          <div class="fg"><label class="fl">Trip Code *</label><input class="fi" id="fCode" placeholder="e.g. venice2025"/></div>
         </div>
         <div class="fr">
-          <div class="fg"><label class="fl">Destination(s)</label><input class="fi" id="fDest" placeholder="e.g. Paris, France"/></div>
-          <div class="fg"><label class="fl">Travel Dates</label><input class="fi" id="fDates" placeholder="e.g. May 10-17, 2025"/></div>
+          <div class="fg"><label class="fl">Destination(s)</label><input class="fi" id="fDest" placeholder="e.g. Venice, Italy"/></div>
+          <div class="fg"><label class="fl">Travel Dates</label><input class="fi" id="fDates" placeholder="e.g. June 10-17, 2025"/></div>
+        </div>
+        <div class="fr">
+          <div class="fg">
+            <label class="fl">Status</label>
+            <select class="fsel" id="fStatus">
+              <option value="draft">Draft</option>
+              <option value="pending">Pending</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div class="fg"><label class="fl">Assigned PM</label><input class="fi" id="fPM" placeholder="e.g. Patricia"/></div>
         </div>
         <div class="fr">
           <div class="fg">
@@ -270,22 +316,26 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
           </div>
           <div class="fg">
             <label class="fl">Client Name</label>
-            <input class="fi" id="fClient" placeholder="e.g. Denver Art Museum" style="margin-bottom:16px"/>
+            <input class="fi" id="fClient" placeholder="e.g. Faena Rose" style="margin-bottom:16px"/>
             <label class="fl">Client Logo</label>
             <div class="uz"><input type="file" accept="image/*" id="logoInput"/><p>Click or drag to upload</p></div>
             <div id="logoPrev"></div>
           </div>
         </div>
-        <div class="fg"><label class="fl">Welcome Message</label><textarea class="fta" id="fWelcome" placeholder="A short welcome note..."></textarea></div>
+        <div class="fg"><label class="fl">Welcome Message</label><textarea class="fta" id="fWelcome" placeholder="A short welcome note for travelers..."></textarea></div>
         <div class="fg"><label class="fl">Coordinator WhatsApp</label><input class="fi" id="fPhone" placeholder="+1 305 000 0000"/></div>
       </div>
+      <!-- ITINERARY TAB -->
       <div class="tp" id="tItinerary"><div id="daysC"></div><button class="addbtn" id="addDayBtn">+ Add Day</button></div>
+      <!-- PACKING TAB -->
       <div class="tp" id="tPacking">
         <p style="font-size:11px;color:var(--gl);margin-bottom:12px">Drag to reorder</p>
         <ul class="pl" id="packList"></ul>
         <button class="addbtn" id="addPackBtn">+ Add Item</button>
       </div>
+      <!-- INFO TAB -->
       <div class="tp" id="tInfo"><div id="infoC"></div><button class="addbtn" id="addInfoBtn">+ Add Section</button></div>
+      <!-- DOCS TAB -->
       <div class="tp" id="tDocs">
         <p style="font-size:12px;color:var(--gray);margin-bottom:16px">Upload PDFs or add links.</p>
         <div id="docsC"></div>
@@ -294,33 +344,40 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
           <button class="addbtn" id="addDocLinkBtn" style="flex:1">+ Add Link</button>
         </div>
       </div>
+      <!-- CITY TAB -->
       <div class="tp" id="tCity"><div id="cityC"></div><button class="addbtn" id="addCityBtn">+ Add City</button></div>
+      <!-- SHARE TAB -->
       <div class="tp" id="tShare">
-        <p style="font-size:13px;color:var(--gray);line-height:1.7;margin-bottom:18px">Share this link with travelers.</p>
+        <p style="font-size:13px;color:var(--gray);line-height:1.7;margin-bottom:18px">Share this direct link with travelers. They see their itinerary without any login.</p>
         <div class="fg"><label class="fl">Traveler Link</label>
           <div class="lkbox"><input type="text" id="shareLink" readonly/><button class="lkcopy" id="copyLinkBtn">Copy</button></div></div>
         <div class="fg" style="margin-top:18px"><label class="fl">Trip Code</label>
           <p id="shareCode" style="font-size:18px;color:var(--purple);letter-spacing:.2em;font-weight:300;margin-top:5px"></p></div>
       </div>
     </div>
-    <div class="mf"><button class="bg" id="edCancelBtn">Cancel</button><button class="bp" id="saveTripBtn" style="width:auto;padding:12px 32px">Save Trip</button></div>
+    <div class="mf">
+      <div style="display:flex;gap:8px">
+        <button class="bg" id="edCancelBtn">Cancel</button>
+        <button class="bd" id="edDeleteBtn" style="display:none">Delete Trip</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="saveStatus" style="font-size:11px;color:var(--gl);font-style:italic"></span>
+        <button class="bp" id="saveTripBtn" style="width:auto;padding:12px 32px">Save to SharePoint</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- MOBILE PREVIEW -->
 <div class="pvo" id="prevOverlay">
   <button class="pvcl" id="closeMobileBtn">x Close</button>
-  <div class="pshell">
-    <div class="pscreen">
-      <iframe id="prevFrame" sandbox="allow-scripts allow-same-origin"></iframe>
-    </div>
-  </div>
+  <div class="pshell"><div class="pscreen"><iframe id="prevFrame" sandbox="allow-scripts allow-same-origin"></iframe></div></div>
 </div>
 
 <!-- DESKTOP PREVIEW -->
 <div id="deskOverlay">
   <div style="background:#fff;border-bottom:1px solid #E0E0E0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-    <div style="background:#F5F5F5;border:1px solid #E0E0E0;padding:4px 16px;font-size:11px;color:#808080;min-width:300px;text-align:center" id="deskUrlBar">liaisonstravel.com</div>
+    <div style="background:#F5F5F5;border:1px solid #E0E0E0;padding:4px 16px;font-size:11px;color:#808080;min-width:300px;text-align:center" id="deskUrlBar"></div>
     <button id="closeDeskBtn" style="background:none;border:1px solid #E0E0E0;padding:6px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:#808080">x Close</button>
   </div>
   <iframe id="deskFrame" sandbox="allow-scripts allow-same-origin allow-popups" style="flex:1;border:none;width:100%"></iframe>
@@ -330,86 +387,210 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
   <p style="font-size:11px">Add LIAISONS TRAVEL to your home screen</p>
   <div class="instbtns">
     <button id="instNoBtn">Not now</button>
-    <button class="yes" id="instYesBtn">Add to Home Screen</button>
+    <button class="yes" id="instYesBtn">Add</button>
   </div>
 </div>
 
-</div><!-- end #app -->
+</div>
 
 <script>
-var PWD='liaisons2025';
+// ── CONFIG ────────────────────────────────────────────
 var AI_MODEL='claude-sonnet-4-20250514';
+var SP_CLIENT_ID='1b2a2847-d244-42a7-b8a4-467ea52bce69';
+var SP_TENANT='2c8fc928-8e15-4ede-971c-9395fb444514';
+var SP_SITE_URL='https://liaisonscorp.sharepoint.com/sites/LiaisonsTravelApp';
+var SP_LIST_ID='e872be72-37f8-4562-984c-aad8b0b20d27';
+var REDIRECT_URI=window.location.href.split('#')[0];
+
+// ── MSAL SETUP ────────────────────────────────────────
+var msalConfig={
+  auth:{
+    clientId:SP_CLIENT_ID,
+    authority:'https://login.microsoftonline.com/'+SP_TENANT,
+    redirectUri:REDIRECT_URI
+  },
+  cache:{cacheLocation:'localStorage',storeAuthStateInCookie:true}
+};
+var msalInstance=null;
+var spScopes=['https://graph.microsoft.com/Sites.ReadWrite.All'];
+var currentAccount=null;
+var spToken=null;
+
+// ── STATE ─────────────────────────────────────────────
 var trips={};
 var curId=null;
 var eDays=[],ePack=[],eInfo=[],eDocs=[],eCity=[];
 var eHero=null,eLogo=null,dragSrc=null,deferredPrompt=null;
+var currentFilter='all';
 
-function save(){try{localStorage.setItem('lt',JSON.stringify(trips));}catch(e){alert('Storage full.');}}
-function load(){try{var d=localStorage.getItem('lt');if(d)trips=JSON.parse(d);}catch(e){}}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
-
-// SCREEN SWITCHING - simple and bulletproof
+// ── SCREEN SWITCHING ──────────────────────────────────
 function showScreen(id){
   var screens=document.querySelectorAll('.screen');
-  for(var i=0;i<screens.length;i++){
-    screens[i].classList.remove('on');
-  }
+  for(var i=0;i<screens.length;i++)screens[i].classList.remove('on');
   var t=document.getElementById(id);
-  if(t) t.classList.add('on');
+  if(t)t.classList.add('on');
   window.scrollTo(0,0);
 }
 
-function doLogin(){
-  showScreen('sDash');
-  renderDash();
-}
-function doLogout(){showScreen('sLogin');}
-function loadTraveler(){
-  var code=document.getElementById('travCode').value.trim().toLowerCase();
-  var keys=Object.keys(trips);
-  for(var i=0;i<keys.length;i++){
-    var t=trips[keys[i]];
-    if(t.code&&t.code.toLowerCase()===code){renderTV(t);showScreen('sTraveler');return;}
-  }
-  alert('Trip code not found.');
+// ── MSAL AUTH ─────────────────────────────────────────
+function getToken(){
+  if(!currentAccount)return Promise.reject('Not signed in');
+  return msalInstance.acquireTokenSilent({scopes:spScopes,account:currentAccount})
+    .then(function(r){spToken=r.accessToken;return spToken;})
+    .catch(function(){
+      return msalInstance.acquireTokenPopup({scopes:spScopes,account:currentAccount})
+        .then(function(r){spToken=r.accessToken;return spToken;});
+    });
 }
 
+function signIn(){
+  if(!msalInstance){document.getElementById('loginErr').textContent='Auth not ready. Please refresh.';return;}
+  document.getElementById('loginErr').textContent='';
+  msalInstance.loginPopup({scopes:spScopes})
+    .then(function(r){
+      currentAccount=r.account;
+      spToken=r.accessToken;
+      document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
+      showScreen('sDash');
+      loadTrips();
+    })
+    .catch(function(e){
+      document.getElementById('loginErr').textContent='Sign in failed. Please try again.';
+      console.error(e);
+    });
+}
+function signOut(){
+  msalInstance.logoutPopup({account:currentAccount}).then(function(){
+    currentAccount=null;spToken=null;trips={};
+    showScreen('sLogin');
+  });
+}
+
+// ── SHAREPOINT API ────────────────────────────────────
+var GRAPH_BASE='https://graph.microsoft.com/v1.0';
+var LIST_URL=GRAPH_BASE+'/sites/'+encodeURIComponent(SP_SITE_URL)+'/lists/'+SP_LIST_ID;
+
+function spGet(url){
+  return getToken().then(function(token){
+    return fetch(url,{headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'}});
+  }).then(function(r){return r.json();});
+}
+function spPost(url,body){
+  return getToken().then(function(token){
+    return fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  }).then(function(r){return r.json();});
+}
+function spPatch(url,body){
+  return getToken().then(function(token){
+    return fetch(url,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','If-Match':'*'},body:JSON.stringify(body)});
+  });
+}
+function spDeleteReq(url){
+  return getToken().then(function(token){
+    return fetch(url,{method:'DELETE',headers:{Authorization:'Bearer '+token,'If-Match':'*'}});
+  });
+}
+
+function loadTrips(){
+  setSyncStatus('Loading...');
+  var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripStatus,TripData,AssignedPM)&$top=500';
+  spGet(url).then(function(data){
+    trips={};
+    var items=data.value||[];
+    for(var i=0;i<items.length;i++){
+      var f=items[i].fields;
+      if(!f)continue;
+      try{
+        var trip=JSON.parse(f.TripData||'{}');
+        trip._spId=items[i].id;
+        trip.status=f.TripStatus||trip.status||'draft';
+        trips[trip.code||items[i].id]=trip;
+      }catch(e){console.error('Parse error',e);}
+    }
+    setSyncStatus('Last synced '+new Date().toLocaleTimeString());
+    renderDash();
+  }).catch(function(e){
+    setSyncStatus('Sync failed');
+    console.error(e);
+    renderDash();
+  });
+}
+
+function spSaveTrip(trip){
+  var fields={
+    Title:trip.name||'',
+    TripCode:trip.code||'',
+    TripStatus:trip.status||'draft',
+    AssignedPM:trip.assignedPM||'',
+    TripData:JSON.stringify(trip)
+  };
+  if(trip._spId){
+    return spPatch(LIST_URL+'/items/'+trip._spId,{fields:fields});
+  }else{
+    return spPost(LIST_URL+'/items',{fields:fields}).then(function(d){
+      if(d.id)trip._spId=d.id;
+      return d;
+    });
+  }
+}
+function spDeleteTrip(trip){
+  if(!trip._spId)return Promise.resolve();
+  return spDeleteReq(LIST_URL+'/items/'+trip._spId);
+}
+function setSyncStatus(msg){
+  var el=document.getElementById('syncStatus');
+  if(el)el.textContent=msg;
+}
+function setSaveStatus(msg){
+  var el=document.getElementById('saveStatus');
+  if(el)el.textContent=msg;
+}
+
+// ── DASHBOARD ─────────────────────────────────────────
 function renderDash(){
   var g=document.getElementById('tripsGrid');g.innerHTML='';
   var keys=Object.keys(trips);
-  var active=[],archived=[];
-  for(var i=0;i<keys.length;i++){(trips[keys[i]].archived?archived:active).push(keys[i]);}
-  for(var i=0;i<active.length;i++)g.appendChild(makeTripCard(active[i],trips[active[i]]));
+  var filtered=[];
+  for(var i=0;i<keys.length;i++){
+    var t=trips[keys[i]];
+    if(currentFilter==='all'||t.status===currentFilter)filtered.push(keys[i]);
+  }
+  if(!filtered.length){
+    var empty=document.createElement('div');
+    empty.style.cssText='grid-column:1/-1;padding:40px;text-align:center;color:var(--gl);font-size:12px;letter-spacing:.1em;text-transform:uppercase';
+    empty.textContent=currentFilter==='all'?'No trips yet. Create your first trip.':'No '+currentFilter+' trips.';
+    g.appendChild(empty);
+  }
+  for(var i=0;i<filtered.length;i++)g.appendChild(makeTripCard(filtered[i],trips[filtered[i]]));
   var nc=document.createElement('div');nc.className='ntc';
-  nc.innerHTML='<div class="plus">+</div><span>Create New Trip</span>';
+  nc.innerHTML='<div class="plus">+</div><span>New Trip</span>';
   nc.addEventListener('click',function(){openEditor(null);});
   g.appendChild(nc);
-  if(archived.length){
-    var sep=document.createElement('div');
-    sep.style.cssText='grid-column:1/-1;padding:24px 0 8px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gl);border-top:1px solid var(--b);margin-top:8px';
-    sep.textContent='Archived Trips';g.appendChild(sep);
-    for(var i=0;i<archived.length;i++)g.appendChild(makeTripCard(archived[i],trips[archived[i]]));
-  }
+}
+function statusColor(s){
+  var map={draft:'draft',pending:'pending',active:'active',completed:'completed',archived:'archived'};
+  return map[s]||'draft';
 }
 function makeTripCard(id,t){
   var c=document.createElement('div');c.className='tc';
-  if(t.archived)c.style.opacity='0.6';
-  c.innerHTML='<div class="tch">'+(t.heroImg?'<img src="'+t.heroImg+'" alt=""/>':'')+
-    '<div class="tco"><h3>'+(t.name||'Untitled')+'</h3><p>'+(t.destinations||'')+'</p></div></div>'+
+  var hero=t.heroImg?'<img src="'+t.heroImg+'" alt=""/>':'';
+  c.innerHTML='<div class="tch">'+hero+'<div class="tco"><h3>'+(t.name||'Untitled')+'</h3><p>'+(t.destinations||'')+'</p></div></div>'+
     '<div class="tcb"><div class="tmeta">'+
+    '<span class="status '+statusColor(t.status)+'">'+(t.status||'draft')+'</span>'+
     (t.dates?'<span class="badge">'+t.dates+'</span>':'')+
     (t.clientName?'<span class="badge">'+t.clientName+'</span>':'')+
-    '<span class="badge">Code: '+(t.code||'-')+'</span></div>'+
+    (t.assignedPM?'<span class="badge">'+t.assignedPM+'</span>':'')+
+    '</div>'+
+    '<div style="font-size:10px;color:var(--gl);letter-spacing:.08em;margin-bottom:8px">Code: '+(t.code||'-')+'</div>'+
     '<div class="tact">'+
     '<button class="bs" data-action="edit" data-id="'+id+'">Edit</button>'+
     '<button class="bg" data-action="mobile" data-id="'+id+'">Mobile</button>'+
     '<button class="bg" data-action="desktop" data-id="'+id+'">Desktop</button>'+
     '<button class="bg" data-action="link" data-id="'+id+'">Link</button>'+
-    '<button class="bg" data-action="archive" data-id="'+id+'">'+(t.archived?'Unarchive':'Archive')+'</button>'+
-    '<button class="bd" data-action="delete" data-id="'+id+'">Delete</button>'+
     '</div></div>';
   return c;
 }
+
 document.addEventListener('click',function(e){
   var btn=e.target.closest('[data-action]');
   if(!btn)return;
@@ -418,15 +599,23 @@ document.addEventListener('click',function(e){
   else if(a==='mobile')openMobilePrev(id);
   else if(a==='desktop')openDesktopPrev(id);
   else if(a==='link')copyTripLink(id);
-  else if(a==='archive'){trips[id].archived=!trips[id].archived;save();renderDash();}
-  else if(a==='delete'){if(confirm('Delete?')){delete trips[id];save();renderDash();}}
 });
+
+document.getElementById('filterBar').addEventListener('click',function(e){
+  var btn=e.target.closest('.fbtn');
+  if(!btn)return;
+  document.querySelectorAll('.fbtn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  currentFilter=btn.getAttribute('data-filter');
+  renderDash();
+});
+
 function copyTripLink(id){
   var t=trips[id];if(!t)return;
   var base=location.href.split('?')[0].split('#')[0];
   var link=base+'#trip/'+t.code;
-  if(navigator.clipboard){navigator.clipboard.writeText(link).then(function(){alert('Copied!\n'+link);});}
-  else prompt('Copy:',link);
+  if(navigator.clipboard){navigator.clipboard.writeText(link).then(function(){alert('Traveler link copied!\n\n'+link);});}
+  else prompt('Copy this link:',link);
 }
 function openMobilePrev(id){
   var trip=trips[id];if(!trip)return;
@@ -440,6 +629,7 @@ function openDesktopPrev(id){
   document.getElementById('deskOverlay').classList.add('open');
 }
 
+// ── EDITOR ────────────────────────────────────────────
 function openEditor(id){
   curId=id;var t=id?trips[id]:{};
   document.getElementById('edTitle').textContent=id?'Edit Trip':'New Trip';
@@ -447,9 +637,12 @@ function openEditor(id){
   document.getElementById('fCode').value=t.code||'';
   document.getElementById('fDest').value=t.destinations||'';
   document.getElementById('fDates').value=t.dates||'';
+  document.getElementById('fStatus').value=t.status||'draft';
+  document.getElementById('fPM').value=t.assignedPM||'';
   document.getElementById('fClient').value=t.clientName||'';
   document.getElementById('fWelcome').value=t.welcome||'';
   document.getElementById('fPhone').value=t.contactPhone||'';
+  document.getElementById('edDeleteBtn').style.display=id?'block':'none';
   eHero=t.heroImg||null;eLogo=t.clientLogo||null;
   showImgPrev('heroPrev',eHero);showImgPrev('logoPrev',eLogo);
   eDays=t.days?JSON.parse(JSON.stringify(t.days)):[];
@@ -460,35 +653,65 @@ function openEditor(id){
   renderDays();renderPack();renderInfo();renderDocs();renderCity();
   document.getElementById('aiSt').textContent='';
   document.getElementById('pasteArea').style.display='none';
+  setSaveStatus('');
   updateShare(t.code||'');
   switchTab('tSetup');
   document.getElementById('editorModal').classList.add('open');
 }
 function closeEditor(){document.getElementById('editorModal').classList.remove('open');}
 function switchTab(id){
-  var panes=document.querySelectorAll('.tp');
-  for(var i=0;i<panes.length;i++)panes[i].classList.remove('active');
-  var tabs=document.querySelectorAll('.ftab');
-  for(var i=0;i<tabs.length;i++){
-    tabs[i].classList.remove('active');
-    if(tabs[i].getAttribute('data-tab')===id)tabs[i].classList.add('active');
-  }
+  document.querySelectorAll('.tp').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.ftab').forEach(function(t){t.classList.remove('active');if(t.getAttribute('data-tab')===id)t.classList.add('active');});
   document.getElementById(id).classList.add('active');
   if(id==='tShare')updateShare(document.getElementById('fCode').value.trim());
 }
 function updateShare(code){
   var base=location.href.split('?')[0].split('#')[0];
-  document.getElementById('shareLink').value=base+'#trip/'+code;
+  document.getElementById('shareLink').value=base+'#trip/'+(code||'');
   document.getElementById('shareCode').textContent=code||'(save trip first)';
 }
 function saveTrip(){
   var name=document.getElementById('fName').value.trim();
   var code=document.getElementById('fCode').value.trim().toLowerCase().replace(/\s+/g,'-');
-  if(!name||!code){alert('Name and code required.');return;}
+  if(!name||!code){alert('Trip name and code are required.');return;}
   var id=curId||('t'+Date.now());
-  trips[id]={name:name,code:code,destinations:document.getElementById('fDest').value,dates:document.getElementById('fDates').value,heroImg:eHero,clientName:document.getElementById('fClient').value,clientLogo:eLogo,welcome:document.getElementById('fWelcome').value,contactPhone:document.getElementById('fPhone').value,days:eDays,packing:ePack,info:eInfo,docs:eDocs,cityGuide:eCity,archived:false};
-  save();closeEditor();renderDash();
+  var trip={
+    name:name,code:code,
+    destinations:document.getElementById('fDest').value,
+    dates:document.getElementById('fDates').value,
+    status:document.getElementById('fStatus').value,
+    assignedPM:document.getElementById('fPM').value,
+    heroImg:eHero,clientName:document.getElementById('fClient').value,
+    clientLogo:eLogo,welcome:document.getElementById('fWelcome').value,
+    contactPhone:document.getElementById('fPhone').value,
+    days:eDays,packing:ePack,info:eInfo,docs:eDocs,cityGuide:eCity
+  };
+  if(curId&&trips[curId])trip._spId=trips[curId]._spId;
+  trips[id]=trip;
+  setSaveStatus('Saving to SharePoint...');
+  document.getElementById('saveTripBtn').disabled=true;
+  spSaveTrip(trip).then(function(){
+    setSaveStatus('Saved!');
+    setSyncStatus('Last synced '+new Date().toLocaleTimeString());
+    setTimeout(function(){setSaveStatus('');},3000);
+    document.getElementById('saveTripBtn').disabled=false;
+    renderDash();
+  }).catch(function(e){
+    setSaveStatus('Save failed - check connection');
+    document.getElementById('saveTripBtn').disabled=false;
+    console.error(e);
+  });
 }
+function deleteTrip(){
+  if(!curId)return;
+  if(!confirm('Delete this trip from SharePoint? This cannot be undone.'))return;
+  var trip=trips[curId];
+  delete trips[curId];
+  closeEditor();renderDash();
+  if(trip)spDeleteTrip(trip).then(function(){setSyncStatus('Deleted. Last synced '+new Date().toLocaleTimeString());}).catch(function(e){console.error(e);});
+}
+
+// ── IMAGES ────────────────────────────────────────────
 function showImgPrev(cid,data){
   var c=document.getElementById(cid);if(!c)return;
   c.innerHTML=data?'<div class="uprev"><img src="'+data+'" alt=""/><button class="uclear" data-clear="'+cid+'">Remove</button></div>':'';
@@ -500,22 +723,22 @@ function handleImgFile(file,type){
 }
 document.addEventListener('click',function(e){
   var b=e.target.closest('[data-clear]');
-  if(b){var cid=b.getAttribute('data-clear');if(cid==='heroPrev')eHero=null;else if(cid==='logoPrev')eLogo=null;showImgPrev(cid,null);}
+  if(b){var cid=b.getAttribute('data-clear');if(cid==='heroPrev')eHero=null;else eLogo=null;showImgPrev(cid,null);}
 });
+
+// ── AI ────────────────────────────────────────────────
 function setSt(m){document.getElementById('aiSt').textContent=m;}
 function fileToB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(f);});}
-function handlePDF(f){if(!f)return;setSt('Reading PDF...');fileToB64(f).then(function(b64){return callAI(null,b64);}).catch(function(){setSt('Could not read PDF - try pasting text.');});}
+function handlePDF(f){if(!f)return;setSt('Reading PDF...');fileToB64(f).then(function(b64){return callAI(null,b64);}).catch(function(){setSt('Could not read PDF.');});}
 function runAIText(){var text=document.getElementById('pasteText').value.trim();if(!text){alert('Paste text first.');return;}document.getElementById('pasteArea').style.display='none';callAI(text,null);}
 function callAI(text,pdfB64){
-  setSt('Analyzing...');
-  var sys='Return ONLY valid JSON no markdown. Structure: {"tripName":"","destinations":"","dates":"","days":[{"title":"","date":"","activities":[{"time":"","title":"","desc":"","mapQuery":"venue+city","photo":null}]}]}';
-  var content=pdfB64?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},{type:'text',text:'Parse this PDF itinerary.'}]:[{type:'text',text:'Parse this itinerary:\n\n'+text}];
+  setSt('Analyzing itinerary...');
+  var sys='Return ONLY valid JSON. Structure: {"tripName":"","destinations":"","dates":"","days":[{"title":"","date":"","activities":[{"time":"","title":"","desc":"","mapQuery":"venue+city","photo":null}]}]}';
+  var content=pdfB64?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},{type:'text',text:'Parse this PDF itinerary.'}]:[{type:'text',text:'Parse:\n\n'+text}];
   return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:AI_MODEL,max_tokens:4000,system:sys,messages:[{role:'user',content:content}]})})
   .then(function(r){return r.json();})
   .then(function(data){
-    var raw='';
-    var c=data.content||[];
-    for(var i=0;i<c.length;i++){if(c[i].type==='text'){raw=c[i].text;break;}}
+    var raw='';var c=data.content||[];for(var i=0;i<c.length;i++){if(c[i].type==='text'){raw=c[i].text;break;}}
     raw=raw.replace(/```json/g,'').replace(/```/g,'').trim();
     var p=JSON.parse(raw);
     if(p.tripName&&!document.getElementById('fName').value)document.getElementById('fName').value=p.tripName;
@@ -523,8 +746,10 @@ function callAI(text,pdfB64){
     if(p.dates&&!document.getElementById('fDates').value)document.getElementById('fDates').value=p.dates;
     if(p.days&&p.days.length){eDays=eDays.concat(p.days);renderDays();switchTab('tItinerary');setSt('Done! '+p.days.length+' days added.');}
     else setSt('No days found. Try pasting text.');
-  }).catch(function(err){setSt('Error - try pasting text.');console.error(err);});
+  }).catch(function(err){setSt('Error parsing - try pasting text.');console.error(err);});
 }
+
+// ── DAYS ──────────────────────────────────────────────
 function renderDays(){
   var c=document.getElementById('daysC');c.innerHTML='';
   for(var di=0;di<eDays.length;di++){
@@ -639,7 +864,9 @@ function renderCity(){
     })(i);
   }
 }
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
+// ── BUILD TRAVELER HTML ────────────────────────────────
 function buildHTML(trip){
   var tabs=[],sections=[];
   function addSec(label,html){var idx=tabs.length;tabs.push(label);sections.push('<div class="sec'+(idx===0?' active':'')+'" id="s'+idx+'">'+html+'</div>');}
@@ -685,7 +912,7 @@ function buildHTML(trip){
   if(trip.clientLogo)clientBlock='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block;margin:0 auto 14px" alt=""/>';
   else if(trip.clientName)clientBlock='<div style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300;margin-bottom:14px">'+trip.clientName+'</div>';
   var phone=(trip.contactPhone||'').replace(/\s+/g,'');
-  var contactBtn=phone?'<a href="https://wa.me/'+phone.replace('+','')+'" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25D366;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">Message Liaisons Team</a>':'<a href="mailto:liaisonstravel@liaisonscorporation.com" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#5B2D8E;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">Message Liaisons Team</a>';
+  var contactBtn=phone?'<a href="https://wa.me/'+phone.replace('+','')+'" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25D366;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">Message Liaisons Team</a>':'';
   var daysJSON=JSON.stringify(trip.days||[]);
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>'+(trip.name||'My Trip')+'</title><style>'+
 '*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#fff;color:#2D2D2D}'+
@@ -716,7 +943,7 @@ function buildHTML(trip){
 '.pi.chk .pkl{color:#B0B0B0;text-decoration:line-through}.pkl{font-size:13px;font-weight:300}'+
 '.ic{border:1px solid #E0E0E0;padding:20px;margin-bottom:13px}.ic h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5B2D8E;margin-bottom:9px}.ic p{font-size:13px;line-height:1.7;white-space:pre-wrap}'+
 '.dc{display:flex;align-items:center;gap:13px;padding:13px 16px;border:1px solid #E0E0E0;margin-bottom:9px;text-decoration:none;color:#2D2D2D}'+
-'.dico{width:36px;height:36px;background:#F5F5F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:400;letter-spacing:.05em}'+
+'.dico{width:36px;height:36px;background:#F5F5F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:400}'+
 '.cgg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}.cgc{border:1px solid #E0E0E0;overflow:hidden}'+
 '.cgi{height:130px;background:linear-gradient(135deg,#5B2D8E,#3a1a5e);display:flex;align-items:center;justify-content:center;overflow:hidden}'+
 '.cgb{padding:13px}.cgb h4{font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px}'+
@@ -744,13 +971,11 @@ function buildHTML(trip){
 'function goTab(idx,el){var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++)ns[i].classList.remove("active");var ss=document.querySelectorAll(".sec");for(var i=0;i<ss.length;i++)ss[i].classList.remove("active");el.classList.add("active");var s=document.getElementById("s"+idx);if(s){s.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}}'+
 'function goDay(idx,pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");var b=document.getElementById("day"+idx);if(b)b.scrollIntoView({behavior:"smooth",block:"start"});}'+
 'function tMap(id,btn){var f=document.getElementById(id);if(!f)return;var open=f.classList.toggle("open");if(open&&f.dataset.src&&!f.src)f.src=f.dataset.src;btn.textContent=open?"Hide Map":"View on Map";}'+
-'(function(){var days='+daysJSON+';if(!days.length)return;var today=new Date();today.setHours(0,0,0,0);var idx=0;for(var i=0;i<days.length;i++){if(!days[i].date)continue;var p=new Date(days[i].date);if(isNaN(p.getTime()))continue;p.setHours(0,0,0,0);if(p.getTime()===today.getTime()){idx=i;break;}}'+
-'setTimeout(function(){var pill=document.querySelectorAll(".dpill")[idx];var block=document.getElementById("day"+idx);'+
-'if(pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");}'+
-'if(block){block.style.borderLeft="3px solid #5B2D8E";block.style.paddingLeft="12px";var badge=document.createElement("span");badge.textContent="TODAY";badge.style.cssText="display:inline-block;background:#5B2D8E;color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";var te=block.querySelector(".dtit");if(te)te.appendChild(badge);var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++){if(ns[i].textContent.trim()==="Itinerary")goTab(i,ns[i]);}block.scrollIntoView({behavior:"smooth",block:"start"});}},600);})();'+
+'(function(){var days='+daysJSON+';if(!days.length)return;var today=new Date();today.setHours(0,0,0,0);var idx=0;for(var i=0;i<days.length;i++){if(!days[i].date)continue;var p=new Date(days[i].date);if(isNaN(p.getTime()))continue;p.setHours(0,0,0,0);if(p.getTime()===today.getTime()){idx=i;break;}}setTimeout(function(){var pill=document.querySelectorAll(".dpill")[idx];var block=document.getElementById("day"+idx);if(pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");}if(block){block.style.borderLeft="3px solid #5B2D8E";block.style.paddingLeft="12px";var badge=document.createElement("span");badge.textContent="TODAY";badge.style.cssText="display:inline-block;background:#5B2D8E;color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";var te=block.querySelector(".dtit");if(te)te.appendChild(badge);var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++){if(ns[i].textContent.trim()==="Itinerary")goTab(i,ns[i]);}block.scrollIntoView({behavior:"smooth",block:"start"});}},600);})();'+
 '<\/script></body></html>';
 }
 
+// ── TRAVELER VIEW ─────────────────────────────────────
 function renderTV(trip){
   var bg=document.getElementById('tvBg');
   if(trip.heroImg){bg.src=trip.heroImg;bg.style.display='block';}else bg.style.display='none';
@@ -766,30 +991,51 @@ function renderTV(trip){
   document.getElementById('tvFrame').srcdoc=buildHTML(trip);
 }
 
+// ── HASH ROUTING (travelers get direct links) ─────────
 function checkHash(){
   var h=window.location.hash;
   if(h.indexOf('#trip/')===0){
     var code=h.replace('#trip/','').toLowerCase();
+    // Try local cache first, then fetch from SP
+    var found=null;
     var keys=Object.keys(trips);
-    for(var i=0;i<keys.length;i++){
-      var t=trips[keys[i]];
-      if(t.code&&t.code.toLowerCase()===code){renderTV(t);showScreen('sTraveler');return;}
+    for(var i=0;i<keys.length;i++){if(trips[keys[i]].code===code){found=trips[keys[i]];break;}}
+    if(found){renderTV(found);showScreen('sTraveler');}
+    else{
+      // Fetch directly from SharePoint without login
+      var url=LIST_URL+'/items?$expand=fields($select=TripCode,TripData)&$filter=fields/TripCode eq \''+code+'\'&$top=1';
+      fetch(url).then(function(r){return r.json();}).then(function(data){
+        var items=data.value||[];
+        if(items.length){
+          var trip=JSON.parse(items[0].fields.TripData||'{}');
+          renderTV(trip);showScreen('sTraveler');
+        }
+      }).catch(function(){});
     }
   }
 }
 window.addEventListener('hashchange',checkHash);
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
 
-load();
-checkHash();
+// ── INIT ──────────────────────────────────────────────
+window.addEventListener('load', function(){
+  if(typeof msal === 'undefined'){
+    document.getElementById('loginErr').textContent='Failed to load Microsoft auth library. Please refresh.';
+    return;
+  }
+  msalInstance=new msal.PublicClientApplication(msalConfig);
+  msalInstance.handleRedirectPromise().then(function(){
+    checkHash();
+  }).catch(function(e){console.error(e);});
+});
 
-document.getElementById('loginBtn').addEventListener('click',doLogin);
-document.getElementById('loginPass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
-document.getElementById('travBtn').addEventListener('click',loadTraveler);
-document.getElementById('travCode').addEventListener('keydown',function(e){if(e.key==='Enter')loadTraveler();});
-document.getElementById('logoutBtn').addEventListener('click',doLogout);
+// ── WIRE BUTTONS ──────────────────────────────────────
+document.getElementById('msLoginBtn').addEventListener('click',signIn);
+document.getElementById('logoutBtn').addEventListener('click',signOut);
+document.getElementById('refreshBtn').addEventListener('click',loadTrips);
 document.getElementById('edCloseBtn').addEventListener('click',closeEditor);
 document.getElementById('edCancelBtn').addEventListener('click',closeEditor);
+document.getElementById('edDeleteBtn').addEventListener('click',deleteTrip);
 document.getElementById('saveTripBtn').addEventListener('click',saveTrip);
 document.getElementById('closeMobileBtn').addEventListener('click',function(){document.getElementById('prevOverlay').classList.remove('open');document.getElementById('prevFrame').srcdoc='';});
 document.getElementById('closeDeskBtn').addEventListener('click',function(){document.getElementById('deskOverlay').classList.remove('open');document.getElementById('deskFrame').srcdoc='';});
@@ -805,7 +1051,7 @@ document.getElementById('addDocLinkBtn').addEventListener('click',function(){eDo
 document.getElementById('addCityBtn').addEventListener('click',function(){eCity.push({name:'',imgData:null,tips:''});renderCity();});
 document.getElementById('copyLinkBtn').addEventListener('click',function(){var l=document.getElementById('shareLink');l.select();document.execCommand('copy');alert('Copied!');});
 document.getElementById('instNoBtn').addEventListener('click',function(){document.getElementById('instBanner').classList.remove('show');});
-document.getElementById('instYesBtn').addEventListener('click',function(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(function(){deferredPrompt=null;document.getElementById('instBanner').classList.remove('show');});}else{alert('iOS: Share then Add to Home Screen');}});
+document.getElementById('instYesBtn').addEventListener('click',function(){if(deferredPrompt){deferredPrompt.prompt();}else{alert('iOS: Share then Add to Home Screen');}});
 document.getElementById('editorTabs').addEventListener('click',function(e){var tab=e.target.closest('.ftab');if(tab)switchTab(tab.getAttribute('data-tab'));});
 </script>
 </body>
