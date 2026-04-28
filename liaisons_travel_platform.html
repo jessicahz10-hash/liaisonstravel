@@ -445,7 +445,7 @@ function getToken(){
 
 function signIn(){
   if(!msalInstance){document.getElementById('loginErr').textContent='Auth not ready. Please refresh.';return;}
-  document.getElementById('loginErr').textContent='';
+  document.getElementById('loginErr').textContent='Opening Microsoft login...';
   msalInstance.loginPopup({scopes:spScopes})
     .then(function(r){
       currentAccount=r.account;
@@ -455,8 +455,9 @@ function signIn(){
       loadTrips();
     })
     .catch(function(e){
-      document.getElementById('loginErr').textContent='Sign in failed. Please try again.';
-      console.error(e);
+      var msg='Sign in failed: '+e.errorCode+' - '+e.message;
+      document.getElementById('loginErr').textContent=msg;
+      console.error('MSAL error:',e);
     });
 }
 function signOut(){
