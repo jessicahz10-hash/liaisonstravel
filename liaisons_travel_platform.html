@@ -433,9 +433,15 @@ var currentFilter='all';
 // ── SCREEN SWITCHING ──────────────────────────────────
 function showScreen(id){
   var screens=document.querySelectorAll('.screen');
-  for(var i=0;i<screens.length;i++)screens[i].classList.remove('on');
+  for(var i=0;i<screens.length;i++){
+    screens[i].classList.remove('on');
+    screens[i].style.display='none';
+  }
   var t=document.getElementById(id);
-  if(t)t.classList.add('on');
+  if(t){
+    t.classList.add('on');
+    t.style.display=(id==='sLogin')?'flex':'block';
+  }
   window.scrollTo(0,0);
 }
 
@@ -1034,18 +1040,18 @@ window.addEventListener('load',function(){
   msalInstance=new msal.PublicClientApplication(msalConfig);
   msalInstance.handleRedirectPromise().then(function(r){
     if(r){
-      // Coming back from Microsoft redirect
       currentAccount=r.account;
       spToken=r.accessToken;
       document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
       showScreen('sDash');
+      window.scrollTo(0,0);
       loadTrips();
     } else {
-      // Check if already signed in
       var accounts=msalInstance.getAllAccounts();
       if(accounts.length>0){
         currentAccount=accounts[0];
         showScreen('sDash');
+        window.scrollTo(0,0);
         loadTrips();
       } else {
         checkHash();
