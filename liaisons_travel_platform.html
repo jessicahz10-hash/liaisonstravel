@@ -4,6 +4,13 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>LIAISONS TRAVEL</title>
+<script>
+// Show login immediately before anything else loads
+document.addEventListener('DOMContentLoaded',function(){
+  var login=document.getElementById('sLogin');
+  if(login)login.style.display='flex';
+});
+</script>
 <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js" crossorigin="anonymous" onerror="loadFallbackMsal()"></script>
 <script>
 function loadFallbackMsal(){
@@ -1039,10 +1046,12 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();def
 
 // ── INIT ──────────────────────────────────────────────
 window.addEventListener('load',function(){
+  var loginErr=document.getElementById('loginErr');
   if(typeof msal==='undefined'){
-    document.getElementById('loginErr').textContent='Failed to load Microsoft auth library. Please refresh.';
+    if(loginErr)loginErr.textContent='Could not load auth library. Please try Chrome or Edge.';
     return;
   }
+  if(loginErr)loginErr.textContent='';
   msalInstance=new msal.PublicClientApplication(msalConfig);
   msalInstance.handleRedirectPromise().then(function(r){
     if(r){
