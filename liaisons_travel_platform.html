@@ -1019,15 +1019,35 @@ window.addEventListener('hashchange',checkHash);
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
 
 // ── INIT ──────────────────────────────────────────────
-window.addEventListener('load', function(){
-  if(typeof msal === 'undefined'){
+window.addEventListener('load',function(){
+  if(typeof msal==='undefined'){
     document.getElementById('loginErr').textContent='Failed to load Microsoft auth library. Please refresh.';
     return;
   }
   msalInstance=new msal.PublicClientApplication(msalConfig);
-  msalInstance.handleRedirectPromise().then(function(){
-    checkHash();
-  }).catch(function(e){console.error(e);});
+  msalInstance.handleRedirectPromise().then(function(r){
+    if(r){
+      // Coming back from Microsoft redirect
+      currentAccount=r.account;
+      spToken=r.accessToken;
+      document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
+      showScreen('sDash');
+      loadTrips();
+    } else {
+      // Check if already signed in
+      var accounts=msalInstance.getAllAccounts();
+      if(accounts.length>0){
+        currentAccount=accounts[0];
+        showScreen('sDash');
+        loadTrips();
+      } else {
+        checkHash();
+      }
+    }
+  }).catch(function(e){
+    document.getElementById('loginErr').textContent='Auth error: '+e.message;
+    console.error(e);
+  });
 });
 
 // ── WIRE BUTTONS ──────────────────────────────────────
