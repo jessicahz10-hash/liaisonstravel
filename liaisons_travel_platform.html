@@ -4,22 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>LIAISONS TRAVEL</title>
-<script>
-// Show login immediately before anything else loads
-document.addEventListener('DOMContentLoaded',function(){
-  var login=document.getElementById('sLogin');
-  if(login)login.style.display='flex';
-});
-</script>
-<script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js" crossorigin="anonymous" onerror="loadFallbackMsal()"></script>
-<script>
-function loadFallbackMsal(){
-  var s=document.createElement('script');
-  s.src='https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.1/lib/msal-browser.min.js';
-  s.crossOrigin='anonymous';
-  document.head.appendChild(s);
-}
-</script>
+<!-- no external MSAL script needed -->
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--purple:#5B2D8E;--pl:#7B4DB0;--gray:#808080;--gl:#B0B0B0;--bg:#F5F5F5;--dark:#2D2D2D;--w:#FFF;--b:#E0E0E0}
@@ -183,12 +168,9 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
     </svg>
     <p style="color:var(--gl);letter-spacing:.2em;font-size:10px;text-transform:uppercase;margin-top:8px">Trip Management Platform</p>
     <div class="lsep"></div>
-    <p style="font-size:13px;color:var(--gray);margin-bottom:24px;line-height:1.6">Sign in with your Liaisons Microsoft account to access the dashboard.</p>
-    <button class="bp" id="msLoginBtn" style="display:flex;align-items:center;justify-content:center;gap:12px">
-      <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
-      Sign in with Microsoft
-    </button>
-    <div id="loginErr" style="color:#c0392b;font-size:12px;margin-top:14px;min-height:16px">Loading...</div>
+    <input type="password" id="loginPass" placeholder="Access code" style="width:100%;border:none;border-bottom:1px solid var(--b);padding:10px 0;font-size:15px;font-weight:300;outline:none;font-family:inherit"/>
+    <div id="loginErr" style="color:#c0392b;font-size:12px;margin-top:12px;min-height:16px"></div>
+    <button class="bp" id="loginBtn" style="margin-top:16px">Enter</button>
   </div>
 </div>
 
@@ -404,12 +386,15 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 
 <script>
 // ── CONFIG ────────────────────────────────────────────
+var PWD='liaisons2025';
 var AI_MODEL='claude-sonnet-4-20250514';
 var SP_CLIENT_ID='1b2a2847-d244-42a7-b8a4-467ea52bce69';
 var SP_TENANT='2c8fc928-8e15-4ede-971c-9395fb444514';
 var SP_SITE_URL='https://liaisonscorp.sharepoint.com/sites/LiaisonsTravelApp';
 var SP_LIST_ID='e872be72-37f8-4562-984c-aad8b0b20d27';
 var REDIRECT_URI='https://jessicahz10-hash.github.io/liaisonstravel/liaisons_travel_platform.html';
+var spToken=null;
+var tokenExpiry=0;
 
 // ── MSAL SETUP ────────────────────────────────────────
 var msalConfig={
@@ -1045,41 +1030,12 @@ window.addEventListener('hashchange',checkHash);
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
 
 // ── INIT ──────────────────────────────────────────────
-window.addEventListener('load',function(){
-  var loginErr=document.getElementById('loginErr');
-  if(typeof msal==='undefined'){
-    if(loginErr)loginErr.textContent='Could not load auth library. Please try Chrome or Edge.';
-    return;
-  }
-  if(loginErr)loginErr.textContent='';
-  msalInstance=new msal.PublicClientApplication(msalConfig);
-  msalInstance.handleRedirectPromise().then(function(r){
-    if(r){
-      currentAccount=r.account;
-      spToken=r.accessToken;
-      document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
-      showScreen('sDash');
-      window.scrollTo(0,0);
-      loadTrips();
-    } else {
-      var accounts=msalInstance.getAllAccounts();
-      if(accounts.length>0){
-        currentAccount=accounts[0];
-        showScreen('sDash');
-        window.scrollTo(0,0);
-        loadTrips();
-      } else {
-        checkHash();
-      }
-    }
-  }).catch(function(e){
-    document.getElementById('loginErr').textContent='Auth error: '+e.message;
-    console.error(e);
-  });
-});
+// ── INIT ──────────────────────────────────────────────
+checkHash();
+document.getElementById('loginBtn').addEventListener('click',doLogin);
+document.getElementById('loginPass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
 
 // ── WIRE BUTTONS ──────────────────────────────────────
-document.getElementById('msLoginBtn').addEventListener('click',signIn);
 document.getElementById('logoutBtn').addEventListener('click',signOut);
 document.getElementById('refreshBtn').addEventListener('click',loadTrips);
 document.getElementById('edCloseBtn').addEventListener('click',closeEditor);
