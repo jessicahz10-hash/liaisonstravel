@@ -16,10 +16,10 @@ if(typeof msal==='undefined'){
 :root{--purple:#5B2D8E;--pl:#7B4DB0;--gray:#808080;--gl:#B0B0B0;--bg:#F5F5F5;--dark:#2D2D2D;--w:#FFF;--b:#E0E0E0}
 body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w);color:var(--dark);margin:0;padding:0}
 #app{position:relative;width:100%;min-height:100vh}
-.screen{display:none;width:100%;min-height:100vh}
-.screen.on{display:block}
-#sLogin{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#fff}
-#sLogin.on{display:flex}
+.screen{display:none !important;width:100%;min-height:100vh}
+.screen.on{display:block !important}
+#sLogin{display:none !important;align-items:center;justify-content:center;min-height:100vh;background:#fff}
+#sLogin.on{display:flex !important}
 .lbox{text-align:center;padding:56px 36px;max-width:420px;width:100%}
 .lsep{width:36px;height:1px;background:var(--purple);margin:10px auto 36px}
 .bp{background:var(--purple);color:#fff;border:none;padding:12px 32px;letter-spacing:.15em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%;transition:background .2s}
