@@ -400,16 +400,23 @@ var SP_CLIENT_ID='1b2a2847-d244-42a7-b8a4-467ea52bce69';
 var SP_TENANT='2c8fc928-8e15-4ede-971c-9395fb444514';
 var SP_SITE_URL='https://liaisonscorp.sharepoint.com/sites/LiaisonsTravelApp';
 var SP_LIST_ID='e872be72-37f8-4562-984c-aad8b0b20d27';
-var REDIRECT_URI=window.location.href.split('#')[0];
+var REDIRECT_URI='https://jessicahz10-hash.github.io/liaisonstravel/liaisons_travel_platform.html';
 
 // ── MSAL SETUP ────────────────────────────────────────
 var msalConfig={
   auth:{
     clientId:SP_CLIENT_ID,
     authority:'https://login.microsoftonline.com/'+SP_TENANT,
-    redirectUri:REDIRECT_URI
+    redirectUri:REDIRECT_URI,
+    navigateToLoginRequestUrl:false
   },
-  cache:{cacheLocation:'localStorage',storeAuthStateInCookie:true}
+  cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:true},
+  system:{
+    allowNativeBroker:false,
+    windowHashTimeout:9000,
+    iframeHashTimeout:9000,
+    loadFrameTimeout:9000
+  }
 };
 var msalInstance=null;
 var spScopes=['https://graph.microsoft.com/Sites.ReadWrite.All'];
