@@ -165,8 +165,8 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 <body>
 <div id="app">
 
-<!-- LOGIN -->
-<div id="sLogin" class="screen on">
+<!-- LOGIN - fixed overlay on top of everything -->
+<div id="sLogin" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center">
   <div class="lbox">
     <svg viewBox="0 0 320 28" xmlns="http://www.w3.org/2000/svg" style="height:26px;width:auto;display:block;margin:0 auto">
       <text x="0" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>
@@ -184,7 +184,7 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 </div>
 
 <!-- DASHBOARD -->
-<div id="sDash" class="screen">
+<div id="sDash" style="display:none;background:var(--bg);min-height:100vh">
   <div class="dh">
     <svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:18px;width:auto">
       <text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>
@@ -216,7 +216,7 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 </div>
 
 <!-- TRAVELER VIEW -->
-<div id="sTraveler" class="screen">
+<div id="sTraveler" style="display:none;background:var(--w);min-height:100vh">
   <div class="tvh">
     <button class="tvback" id="tvBackBtn">Back</button>
     <img class="tvhbg" id="tvBg" src="" alt="" style="display:none"/>
@@ -432,15 +432,19 @@ var currentFilter='all';
 
 // ── SCREEN SWITCHING ──────────────────────────────────
 function showScreen(id){
-  var screens=document.querySelectorAll('.screen');
-  for(var i=0;i<screens.length;i++){
-    screens[i].classList.remove('on');
-    screens[i].style.display='none';
+  // Hide login overlay
+  var login=document.getElementById('sLogin');
+  // Hide all other screens
+  var others=['sDash','sTraveler'];
+  for(var i=0;i<others.length;i++){
+    document.getElementById(others[i]).style.display='none';
   }
-  var t=document.getElementById(id);
-  if(t){
-    t.classList.add('on');
-    t.style.display=(id==='sLogin')?'flex':'block';
+  if(id==='sLogin'){
+    login.style.display='flex';
+  } else {
+    login.style.display='none';
+    var target=document.getElementById(id);
+    if(target)target.style.display='block';
   }
   window.scrollTo(0,0);
 }
