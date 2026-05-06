@@ -114,7 +114,32 @@ function buildApp(){
 }
 
 function getAppHTML(){
-  return '<style>'+getCSS()+'</style>'+getDashHTML()+getEditorHTML()+getTravelerHTML()+getPreviewHTML();
+  return '<style>'+getCSS()+'</style>'+getDashHTML()+getEditorHTML()+getTravelerHTML()+getPreviewHTML()+getSettingsHTML();
+}
+
+function getSettingsHTML(){
+  return '<div class="mo" id="settingsModal">'+
+  '<div class="md" style="max-width:500px">'+
+  '<div class="mh"><h2>Settings</h2><button class="mcl" id="settingsCloseBtn">&times;</button></div>'+
+  '<div class="mb">'+
+  '<p style="font-size:12px;color:var(--gray);line-height:1.7;margin-bottom:22px">Paste your GitHub Personal Access Token below. It is stored only in your browser and never shared.</p>'+
+  '<div class="fg"><label class="fl">GitHub Token</label>'+
+  '<input class="fi" id="ghToken" type="password" placeholder="ghp_..."/>'+
+  '<p style="font-size:10px;color:var(--gl);margin-top:5px">Needs <strong>repo</strong> scope. Generate at github.com → Settings → Developer Settings → Personal Access Tokens.</p></div>'+
+  '<div class="fg"><label class="fl">GitHub Repo Owner</label>'+
+  '<input class="fi" id="ghOwner" placeholder="jessicahz10-hash"/></div>'+
+  '<div class="fg"><label class="fl">GitHub Repo Name</label>'+
+  '<input class="fi" id="ghRepo" placeholder="liaisonstravel"/></div>'+
+  '<div class="fg"><label class="fl">Trips Folder (in repo)</label>'+
+  '<input class="fi" id="ghFolder" placeholder="trips"/></div>'+
+  '<div style="background:#f3eefa;border:1px solid #c9a8e8;padding:13px;font-size:11px;color:var(--purple);line-height:1.7;margin-top:4px">'+
+  'Client links will be:<br><strong>https://[owner].github.io/[repo]/trips/[tripcode].html</strong></div>'+
+  '</div>'+
+  '<div class="mf"><div></div><div style="display:flex;gap:8px;align-items:center">'+
+  '<span id="settingsSaveStatus" style="font-size:11px;color:var(--gl);font-style:italic"></span>'+
+  '<button class="bp" id="settingsSaveBtn" style="width:auto;padding:12px 28px">Save Settings</button>'+
+  '</div></div>'+
+  '</div></div>';
 }
 
 function getCSS(){
@@ -242,7 +267,7 @@ function getDashHTML(){
   return '<div id="sDash" style="background:var(--bg);min-height:100vh">'+
   '<div class="dh">'+
   '<svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:18px;width:auto"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#5B2D8E">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#808080">TRAVEL</text></svg>'+
-  '<div style="display:flex;gap:9px;align-items:center"><span style="font-size:10px;letter-spacing:.1em;color:var(--gl)" id="userLabel"></span><button class="bg" id="logoutBtn">Sign Out</button></div>'+
+  '<div style="display:flex;gap:9px;align-items:center"><span style="font-size:10px;letter-spacing:.1em;color:var(--gl)" id="userLabel"></span><button class="bg" id="settingsBtn">Settings</button><button class="bg" id="logoutBtn">Sign Out</button></div>'+
   '</div>'+
   '<div class="db">'+
   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">'+
@@ -472,6 +497,7 @@ function makeTripCard(id,t){
     '<button class="bs" data-action="edit" data-id="'+id+'">Edit</button>'+
     '<button class="bg" data-action="mobile" data-id="'+id+'">Mobile</button>'+
     '<button class="bg" data-action="desktop" data-id="'+id+'">Desktop</button>'+
+    '<button class="bg" data-action="publish" data-id="'+id+'" style="background:var(--purple);color:#fff;border-color:var(--purple)">Publish</button>'+
     '<button class="bg" data-action="link" data-id="'+id+'">Link</button>'+
     '</div></div>';
   return c;
@@ -497,6 +523,7 @@ document.addEventListener('click',function(e){
       document.getElementById('deskOverlay').classList.add('open');
     }
   }
+  else if(a==='publish'){publishTrip(id);}
   else if(a==='link'){
     var t=trips[id];
     if(t){
@@ -961,12 +988,12 @@ function buildTravelerHTML(trip){
   var navItems='';
   for(var i=0;i<tabs.length;i++){navItems+='<div class="ni'+(i===0?' active':'')+'" onclick="goTab('+i+',this)">'+tabs[i]+'</div>';}
 
-  // FIX 4: Client logo/name block - centered
+  // Hero: client logo → destination → date → Liaisons logo
   var clientBlock='';
   if(trip.clientLogo){
-    clientBlock='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block;margin:0 auto 14px" alt=""/>';
+    clientBlock='<img src="'+trip.clientLogo+'" style="max-height:72px;max-width:200px;object-fit:contain;display:block;margin:0 auto 18px" alt=""/>';
   } else if(trip.clientName){
-    clientBlock='<div style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300;margin-bottom:14px;text-align:center">'+trip.clientName+'</div>';
+    clientBlock='<div style="color:#fff;font-size:12px;letter-spacing:.25em;text-transform:uppercase;font-weight:300;margin-bottom:18px;text-align:center;width:100%">'+trip.clientName+'</div>';
   }
 
   var phone=(trip.contactPhone||'').replace(/\s+/g,'');
@@ -1021,10 +1048,11 @@ function buildTravelerHTML(trip){
 '<div class="hero">'+
 (trip.heroImg?'<img class="hbg" src="'+trip.heroImg+'" alt=""/>':'')+
 '<div class="hdk"></div>'+
-'<div class="hov">'+clientBlock+
-'<div class="htl">'+(trip.name||'')+'</div>'+
-'<div class="hmt">'+[trip.destinations,trip.dates].filter(Boolean).join(' &mdash; ')+'</div>'+
-'<div class="hlt"><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:13px;width:auto"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="white">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="rgba(255,255,255,.8)">TRAVEL</text></svg></div>'+
+'<div class="hov">'+
+clientBlock+
+(trip.destinations?'<div class="htl">'+(trip.destinations||'')+'</div>':'')+
+(trip.dates?'<div class="hmt">'+(trip.dates||'')+'</div>':'')+
+'<div class="hlt" style="display:flex;justify-content:center;width:100%;margin-top:18px"><svg viewBox="0 0 310 24" xmlns="http://www.w3.org/2000/svg" style="height:13px;width:auto;display:block"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="white">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="rgba(255,255,255,.7)">TRAVEL</text></svg></div>'+
 '</div></div>'+
 '<nav>'+navItems+'</nav>'+
 '<div id="secs">'+sections.join('')+'</div>'+
@@ -1047,9 +1075,14 @@ contactBtn+
 'function tMap(id,btn){'+
 'var f=document.getElementById(id);if(!f)return;'+
 'var isOpen=f.classList.toggle("open");'+
-'if(isOpen&&!f.src){'+
+'if(isOpen&&!f.getAttribute("data-loaded")){'+
 'var q=f.getAttribute("data-q");'+
-'if(q)f.src="https://maps.google.com/maps?q="+q+"&output=embed&z=15";'+
+'if(q){'+
+'f.setAttribute("data-loaded","1");'+
+'f.src="https://www.openstreetmap.org/export/embed.html?bbox=-0.1,51.4,0.1,51.6&layer=mapnik&marker="+encodeURIComponent(q);'+
+// Actually use a search-based embed that works reliably
+'f.src="https://maps.google.com/maps?q="+q+"&output=embed&z=15&hl=en";'+
+'}'+
 '}'+
 'btn.textContent=isOpen?"Hide Map":"View on Map";'+
 '}'+
@@ -1129,8 +1162,92 @@ function checkHash(){
 window.addEventListener('hashchange',checkHash);
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
 
+// GITHUB PUBLISH
+function loadSettings(){
+  var token=localStorage.getItem('gh_token')||'';
+  var owner=localStorage.getItem('gh_owner')||'jessicahz10-hash';
+  var repo=localStorage.getItem('gh_repo')||'liaisonstravel';
+  var folder=localStorage.getItem('gh_folder')||'trips';
+  var el;
+  el=document.getElementById('ghToken');if(el)el.value=token;
+  el=document.getElementById('ghOwner');if(el)el.value=owner;
+  el=document.getElementById('ghRepo');if(el)el.value=repo;
+  el=document.getElementById('ghFolder');if(el)el.value=folder;
+}
+
+function saveSettings(){
+  localStorage.setItem('gh_token',document.getElementById('ghToken').value.trim());
+  localStorage.setItem('gh_owner',document.getElementById('ghOwner').value.trim());
+  localStorage.setItem('gh_repo',document.getElementById('ghRepo').value.trim());
+  localStorage.setItem('gh_folder',document.getElementById('ghFolder').value.trim());
+  var st=document.getElementById('settingsSaveStatus');
+  if(st){st.textContent='Saved!';setTimeout(function(){st.textContent='';},2000);}
+}
+
+function publishTrip(id){
+  var trip=trips[id];
+  if(!trip){alert('Trip not found.');return;}
+  var token=localStorage.getItem('gh_token');
+  if(!token){
+    alert('Please add your GitHub token in Settings first.');
+    openSettings();
+    return;
+  }
+  var owner=localStorage.getItem('gh_owner')||'jessicahz10-hash';
+  var repo=localStorage.getItem('gh_repo')||'liaisonstravel';
+  var folder=localStorage.getItem('gh_folder')||'trips';
+  var filename=folder+'/'+(trip.code||'trip')+'.html';
+  var html=buildTravelerHTML(trip);
+  var b64=btoa(unescape(encodeURIComponent(html)));
+  var apiUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+filename;
+
+  // Check if file exists to get its SHA (needed for updates)
+  setSyncStatus('Publishing...');
+  fetch(apiUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})
+  .then(function(r){return r.ok?r.json():null;})
+  .then(function(existing){
+    var body={message:'Publish trip: '+(trip.name||trip.code),content:b64};
+    if(existing&&existing.sha)body.sha=existing.sha;
+    return fetch(apiUrl,{
+      method:'PUT',
+      headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+      body:JSON.stringify(body)
+    });
+  })
+  .then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error(t);});
+    return r.json();
+  })
+  .then(function(){
+    var clientLink='https://'+owner+'.github.io/'+repo+'/'+filename;
+    setSyncStatus('Published!');
+    setTimeout(function(){setSyncStatus('');},3000);
+    // Copy link to clipboard and show it
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(clientLink).then(function(){
+        alert('✅ Published! Client link copied to clipboard:\n\n'+clientLink+'\n\nSend this to your client — no login required!');
+      });
+    } else {
+      prompt('✅ Published! Client link (copy this):',clientLink);
+    }
+  })
+  .catch(function(e){
+    setSyncStatus('Publish failed');
+    console.error(e);
+    alert('Publish failed: '+e.message+'\n\nCheck your GitHub token in Settings.');
+  });
+}
+
+function openSettings(){
+  loadSettings();
+  document.getElementById('settingsModal').classList.add('open');
+}
+
 function wireButtons(){
   document.getElementById('logoutBtn').addEventListener('click',signOut);
+  document.getElementById('settingsBtn').addEventListener('click',openSettings);
+  document.getElementById('settingsCloseBtn').addEventListener('click',function(){document.getElementById('settingsModal').classList.remove('open');});
+  document.getElementById('settingsSaveBtn').addEventListener('click',saveSettings);
   document.getElementById('refreshBtn').addEventListener('click',loadTrips);
   document.getElementById('edCloseBtn').addEventListener('click',closeEditor);
   document.getElementById('edCancelBtn').addEventListener('click',closeEditor);
@@ -1183,8 +1300,79 @@ function wireButtons(){
   });
 }
 
-document.getElementById('msLoginBtn').addEventListener('click',signIn);
-loadMSAL();
+// On page load: if this is a client traveler link, skip PM login entirely
+(function(){
+  var h=window.location.hash;
+  if(h.indexOf('#trip/')===0){
+    var code=h.replace('#trip/','').toLowerCase();
+    document.getElementById('sLogin').style.display='none';
+    var shell=document.getElementById('appShell');
+    shell.style.display='block';
+    // Inject traveler + preview HTML
+    shell.innerHTML='<div id="tripLoading" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">'+
+      '<svg viewBox="0 0 320 28" xmlns="http://www.w3.org/2000/svg" style="height:22px;width:auto">'+
+      '<text x="0" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>'+
+      '<text x="158" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#808080">TRAVEL</text></svg>'+
+      '<p style="font-size:10px;letter-spacing:.2em;color:#B0B0B0;text-transform:uppercase" id="loadMsg">Loading your trip...</p></div>'+
+      getTravelerHTML()+getPreviewHTML();
+    document.getElementById('tvBackBtn').addEventListener('click',function(){
+      window.location.hash='';
+      document.getElementById('sTraveler').style.display='none';
+    });
+    // Load MSAL silently to get token, then fetch trip
+    loadMSALpublic(code);
+    return;
+  }
+  // Normal PM flow
+  document.getElementById('msLoginBtn').addEventListener('click',signIn);
+  loadMSAL();
+})();
+
+function loadMSALpublic(code){
+  var s=document.createElement('script');
+  s.src='https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js';
+  s.crossOrigin='anonymous';
+  s.onload=function(){
+    var config={auth:{clientId:SP_CLIENT_ID,authority:'https://login.microsoftonline.com/'+SP_TENANT,redirectUri:REDIRECT_URI},cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:true}};
+    msalInstance=new msal.PublicClientApplication(config);
+    msalInstance.handleRedirectPromise().then(function(r){
+      if(r){spToken=r.accessToken;fetchPublicTrip(code);}
+      else{
+        var accts=msalInstance.getAllAccounts();
+        if(accts.length>0){currentAccount=accts[0];getToken().then(function(){fetchPublicTrip(code);}).catch(function(){fetchPublicTrip(code);});}
+        else{fetchPublicTrip(code);}
+      }
+    }).catch(function(){fetchPublicTrip(code);});
+  };
+  s.onerror=function(){fetchPublicTrip(code);};
+  document.head.appendChild(s);
+}
+
+function fetchPublicTrip(code){
+  var msg=document.getElementById('loadMsg');
+  var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
+  var hdrs={'Content-Type':'application/json'};
+  if(spToken)hdrs['Authorization']='Bearer '+spToken;
+  fetch(url,{headers:hdrs})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(data){
+      var items=data.value||[];
+      for(var i=0;i<items.length;i++){
+        try{
+          var t=JSON.parse(items[i].fields.TripData||'{}');
+          if(t.code&&t.code.toLowerCase()===code){
+            var loading=document.getElementById('tripLoading');
+            if(loading)loading.style.display='none';
+            renderTV(t);
+            document.getElementById('sTraveler').style.display='block';
+            return;
+          }
+        }catch(e){}
+      }
+      if(msg)msg.textContent='Trip not found.';
+    })
+    .catch(function(e){console.error(e);if(msg)msg.textContent='Could not load trip.';});
+}
 </script>
 </body>
 </html>
