@@ -1335,7 +1335,7 @@ function wireButtons(){
   });
   if(currentAccount)document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
   // Mark dirty on any setup field change
-  ['fName','fCode','fDest','fDates','fStatus','fPM','fClient','fWelcome','fPhone'].forEach(function(id){
+  ['fName','fCode','fDest','fDates','fStatus','fPM','fClient','fWelcome','fPhone','fBoxStyle','fBoxOpacity'].forEach(function(id){
     var el=document.getElementById(id);
     if(el)el.addEventListener('input',markDirty);
     if(el)el.addEventListener('change',markDirty);
