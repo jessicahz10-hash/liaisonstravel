@@ -36,7 +36,7 @@ var SP_CLIENT_ID='1b2a2847-d244-42a7-b8a4-467ea52bce69';
 var SP_TENANT='2c8fc928-8e15-4ede-971c-9395fb444514';
 var SP_SITE_URL='https://liaisonscorp.sharepoint.com/sites/LiaisonsTravelApp';
 var SP_LIST_ID='e872be72-37f8-4562-984c-aad8b0b20d27';
-var REDIRECT_URI='https://jessicahz10-hash.github.io/liaisonstravel/liaisons_travel_platform.html';
+var REDIRECT_URI=window.location.origin+window.location.pathname;
 var msalInstance=null;
 var currentAccount=null;
 var spToken=null;
@@ -99,6 +99,12 @@ function getToken(){
 function onSignedIn(){
   document.getElementById('sLogin').style.display='none';
   buildApp();
+  // FIX 4: Refresh token every 45 min to prevent expiry
+  setInterval(function(){
+    getToken().catch(function(){
+      setSyncStatus('Session expired - please refresh the page');
+    });
+  }, 45*60*1000);
   // Check hash BEFORE loading trips so traveler view works without auth
   var h=window.location.hash;
   if(h.indexOf('#trip/')===0){checkHash();}
@@ -640,6 +646,16 @@ function saveTrip(auto){
   var name=document.getElementById('fName').value.trim();
   var code=document.getElementById('fCode').value.trim().toLowerCase().replace(/\s+/g,'-');
   if(!name||!code){if(!auto)alert('Trip Name and Trip Code are required.');return;}
+  // FIX 5: Check for duplicate trip code (only on new trips)
+  if(!curId){
+    var keys=Object.keys(trips);
+    for(var i=0;i<keys.length;i++){
+      if(trips[keys[i]].code===code){
+        if(!confirm('A trip with code "'+code+'" already exists. Overwrite it?'))return;
+        break;
+      }
+    }
+  }
 
   // Build complete trip object
   var trip={
@@ -677,6 +693,12 @@ function saveTrip(auto){
   }
   trips[localKey]=trip;
   curId=localKey;
+
+  // FIX 2: Warn if TripData is too large (SharePoint multiline limit ~1MB safe threshold)
+  var tripJSON=JSON.stringify(trip);
+  if(tripJSON.length>800000){
+    setSaveStatus('Warning: trip data is very large ('+Math.round(tripJSON.length/1024)+'KB). Consider removing some images.');
+  }
 
   setSaveStatus('Saving...');
   document.getElementById('saveTripBtn').disabled=true;
@@ -844,7 +866,7 @@ function renderPack(){
       li.addEventListener('dragend',function(){li.classList.remove('dragging');});
       li.addEventListener('dragover',function(e){e.preventDefault();li.classList.add('drag-over');});
       li.addEventListener('dragleave',function(){li.classList.remove('drag-over');});
-      li.addEventListener('drop',function(e){e.preventDefault();li.classList.remove('drag-over');if(dragSrc===null||dragSrc===i)return;var m=ePack.splice(dragSrc,1)[0];ePack.splice(i,0,m);dragSrc=null;renderPack();});
+      li.addEventListener('drop',function(e){e.preventDefault();li.classList.remove('drag-over');if(dragSrc===null||dragSrc===i)return;var m=ePack.splice(dragSrc,1)[0];ePack.splice(i,0,m);dragSrc=null;renderPack();markDirty();});
       list.appendChild(li);
     })(i);
   }
@@ -1212,6 +1234,9 @@ function saveSettings(){
 function publishTrip(id){
   var trip=trips[id];
   if(!trip){alert('Trip not found.');return;}
+  if(trip.status==='draft'){
+    if(!confirm('This trip is still a DRAFT. Publish anyway?'))return;
+  }
   var token=localStorage.getItem('gh_token');
   if(!token){
     alert('Please add your GitHub token in Settings first.');
