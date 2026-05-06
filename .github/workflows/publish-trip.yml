@@ -1,0 +1,34 @@
+name: Publish Trip
+
+on:
+  repository_dispatch:
+    types: [publish-trip]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GHTOKEN }}
+
+      - name: Write trip file
+        run: |
+          mkdir -p trips
+          python3 -c "
+          import json, base64
+          html = base64.b64decode('${{ github.event.client_payload.html_b64 }}').decode('utf-8')
+          with open('trips/${{ github.event.client_payload.code }}.html', 'w') as f:
+              f.write(html)
+          "
+
+      - name: Commit and push
+        run: |
+          git config user.name "Liaisons Travel"
+          git config user.email "travel@liaisonstravel.com"
+          git add trips/
+          git commit -m "Publish trip: ${{ github.event.client_payload.code }}" || echo "No changes"
+          git push
