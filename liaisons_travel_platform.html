@@ -132,8 +132,11 @@ function getSettingsHTML(){
   '<input class="fi" id="ghRepo" placeholder="liaisonstravel"/></div>'+
   '<div class="fg"><label class="fl">Trips Folder (in repo)</label>'+
   '<input class="fi" id="ghFolder" placeholder="trips"/></div>'+
+  '<div class="fg" style="margin-top:4px"><label class="fl">Custom Domain (optional)</label>'+
+  '<input class="fi" id="ghDomain" placeholder="trips.liaisonstravel.com"/>'+
+  '<p style="font-size:10px;color:var(--gl);margin-top:5px">If set, client links will use this domain instead of github.io</p></div>'+
   '<div style="background:#f3eefa;border:1px solid #c9a8e8;padding:13px;font-size:11px;color:var(--purple);line-height:1.7;margin-top:4px">'+
-  'Client links will be:<br><strong>https://[owner].github.io/[repo]/trips/[tripcode].html</strong></div>'+
+  'Client links will be:<br><strong>https://trips.liaisonstravel.com/trips/[tripcode].html</strong></div>'+
   '</div>'+
   '<div class="mf"><div></div><div style="display:flex;gap:8px;align-items:center">'+
   '<span id="settingsSaveStatus" style="font-size:11px;color:var(--gl);font-style:italic"></span>'+
@@ -1170,11 +1173,13 @@ function loadSettings(){
   var owner=localStorage.getItem('gh_owner')||'jessicahz10-hash';
   var repo=localStorage.getItem('gh_repo')||'liaisonstravel';
   var folder=localStorage.getItem('gh_folder')||'trips';
+  var domain=localStorage.getItem('gh_domain')||'trips.liaisonstravel.com';
   var el;
   el=document.getElementById('ghToken');if(el)el.value=token;
   el=document.getElementById('ghOwner');if(el)el.value=owner;
   el=document.getElementById('ghRepo');if(el)el.value=repo;
   el=document.getElementById('ghFolder');if(el)el.value=folder;
+  el=document.getElementById('ghDomain');if(el)el.value=domain;
 }
 
 function saveSettings(){
@@ -1182,6 +1187,7 @@ function saveSettings(){
   localStorage.setItem('gh_owner',document.getElementById('ghOwner').value.trim());
   localStorage.setItem('gh_repo',document.getElementById('ghRepo').value.trim());
   localStorage.setItem('gh_folder',document.getElementById('ghFolder').value.trim());
+  localStorage.setItem('gh_domain',document.getElementById('ghDomain').value.trim());
   var st=document.getElementById('settingsSaveStatus');
   if(st){st.textContent='Saved!';setTimeout(function(){st.textContent='';},2000);}
 }
@@ -1221,7 +1227,8 @@ function publishTrip(id){
     return r.json();
   })
   .then(function(){
-    var clientLink='https://'+owner+'.github.io/'+repo+'/'+filename;
+    var customDomain=localStorage.getItem('gh_domain')||'';
+    var clientLink=customDomain?'https://'+customDomain+'/trips/'+(trip.code||'trip')+'.html':'https://'+owner+'.github.io/'+repo+'/'+filename;
     setSyncStatus('Published!');
     setTimeout(function(){setSyncStatus('');},3000);
     // Copy link to clipboard and show it
