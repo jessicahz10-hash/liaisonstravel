@@ -1203,42 +1203,40 @@ function publishTrip(id){
   }
   var owner=localStorage.getItem('gh_owner')||'jessicahz10-hash';
   var repo=localStorage.getItem('gh_repo')||'liaisonstravel';
+  var folder=localStorage.getItem('gh_folder')||'trips';
   var customDomain=localStorage.getItem('gh_domain')||'trips.liaisonstravel.com';
-  var html=buildTravelerHTML(trip);
-  // Base64 encode the HTML to safely pass through JSON
-  var b64=btoa(unescape(encodeURIComponent(html)));
   var code=trip.code||'trip';
+  var filename=folder+'/'+code+'.html';
+  var html=buildTravelerHTML(trip);
+  var b64=btoa(unescape(encodeURIComponent(html)));
+  var apiUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+filename;
   setSyncStatus('Publishing...');
-  // Trigger GitHub Actions workflow via repository_dispatch
-  fetch('https://api.github.com/repos/'+owner+'/'+repo+'/dispatches',{
-    method:'POST',
-    headers:{
-      'Authorization':'token '+token,
-      'Accept':'application/vnd.github.v3+json',
-      'Content-Type':'application/json'
-    },
-    body:JSON.stringify({
-      event_type:'publish-trip',
-      client_payload:{
-        code:code,
-        html_b64:b64
-      }
-    })
+  // Check if file exists to get SHA for update
+  fetch(apiUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})
+  .then(function(r){return r.ok?r.json():null;})
+  .then(function(existing){
+    var body={message:'Publish trip: '+(trip.name||code),content:b64};
+    if(existing&&existing.sha)body.sha=existing.sha;
+    return fetch(apiUrl,{
+      method:'PUT',
+      headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+      body:JSON.stringify(body)
+    });
   })
   .then(function(r){
-    if(r.status===204){
-      var clientLink='https://'+customDomain+'/trips/'+code+'.html';
-      setSyncStatus('Published!');
-      setTimeout(function(){setSyncStatus('');},3000);
-      if(navigator.clipboard){
-        navigator.clipboard.writeText(clientLink).then(function(){
-          alert('✅ Published!\n\nClient link copied:\n'+clientLink+'\n\nNote: link goes live in ~30 seconds.');
-        });
-      } else {
-        prompt('✅ Published! Client link:',clientLink);
-      }
+    if(!r.ok)return r.text().then(function(t){throw new Error(t);});
+    return r.json();
+  })
+  .then(function(){
+    var clientLink='https://'+customDomain+'/trips/'+code+'.html';
+    setSyncStatus('Published!');
+    setTimeout(function(){setSyncStatus('');},3000);
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(clientLink).then(function(){
+        alert('✅ Published! Client link copied:\n\n'+clientLink+'\n\nSend this to your client — no login required!');
+      });
     } else {
-      return r.text().then(function(t){throw new Error('Status '+r.status+': '+t);});
+      prompt('✅ Published! Client link:',clientLink);
     }
   })
   .catch(function(e){
