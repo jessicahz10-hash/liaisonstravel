@@ -991,7 +991,7 @@ function buildTravelerHTML(trip){
   // Hero: client logo → destination → date → Liaisons logo
   var clientBlock='';
   if(trip.clientLogo){
-    clientBlock='<img src="'+trip.clientLogo+'" style="max-height:72px;max-width:200px;object-fit:contain;display:block;margin:0 auto 18px" alt=""/>';
+    clientBlock='<img src="'+trip.clientLogo+'" style="max-height:100px;max-width:240px;object-fit:contain;display:block;margin:0 auto 20px" alt=""/>';
   } else if(trip.clientName){
     clientBlock='<div style="color:#fff;font-size:12px;letter-spacing:.25em;text-transform:uppercase;font-weight:300;margin-bottom:18px;text-align:center;width:100%">'+trip.clientName+'</div>';
   }
@@ -1007,9 +1007,10 @@ function buildTravelerHTML(trip){
 '.hbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}'+
 '.hdk{position:absolute;inset:0;background:rgba(0,0,0,.32)}'+
 '.hov{position:relative;z-index:2;text-align:center;padding:24px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}'+
-'.htl{color:#fff;font-size:clamp(20px,5vw,52px);font-weight:100;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;width:100%;text-align:center}'+
-'.hmt{color:rgba(255,255,255,.75);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:22px;text-align:center}'+
-'.hlt{opacity:.6;margin-top:10px;display:flex;justify-content:center;width:100%}'+
+'.hbox{background:rgba(0,0,0,.38);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);padding:32px 40px;display:flex;flex-direction:column;align-items:center;max-width:560px;width:90%}'+
+'.htl{color:#fff;font-size:clamp(18px,4vw,42px);font-weight:100;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;width:100%;text-align:center}'+
+'.hmt{color:rgba(255,255,255,.8);font-size:11px;letter-spacing:.22em;text-transform:uppercase;margin-bottom:0;text-align:center}'+
+'.hlt{margin-top:22px;display:flex;justify-content:center;width:100%;opacity:.75}'+
 'nav{position:sticky;top:0;background:#fff;border-bottom:1px solid #E0E0E0;display:flex;overflow-x:auto;z-index:100;scrollbar-width:none}nav::-webkit-scrollbar{display:none}'+
 '.ni{padding:14px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;white-space:nowrap;color:#B0B0B0;border-bottom:2px solid transparent;flex-shrink:0}'+
 '.ni.active{color:#5B2D8E;border-bottom-color:#5B2D8E}'+
@@ -1049,10 +1050,12 @@ function buildTravelerHTML(trip){
 (trip.heroImg?'<img class="hbg" src="'+trip.heroImg+'" alt=""/>':'')+
 '<div class="hdk"></div>'+
 '<div class="hov">'+
+'<div class="hbox">'+
 clientBlock+
 (trip.destinations?'<div class="htl">'+(trip.destinations||'')+'</div>':'')+
 (trip.dates?'<div class="hmt">'+(trip.dates||'')+'</div>':'')+
-'<div class="hlt" style="display:flex;justify-content:center;width:100%;margin-top:18px"><svg viewBox="0 0 310 24" xmlns="http://www.w3.org/2000/svg" style="height:13px;width:auto;display:block"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="white">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="rgba(255,255,255,.7)">TRAVEL</text></svg></div>'+
+'<div class="hlt"><svg viewBox="0 0 290 22" xmlns="http://www.w3.org/2000/svg" style="height:14px;width:auto;display:block;margin:0 auto"><text x="0" y="18" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="18" letter-spacing="5" fill="white">LIAISONS</text><text x="122" y="18" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="18" letter-spacing="5" fill="rgba(255,255,255,.8)">TRAVEL</text></svg></div>'+
+'</div>'+
 '</div></div>'+
 '<nav>'+navItems+'</nav>'+
 '<div id="secs">'+sections.join('')+'</div>'+
