@@ -385,7 +385,7 @@ function spDel(url){
 function loadTrips(){
   setSyncStatus('Loading...');
   // FIX 1/2: Fetch all items, each item = one trip (TripData contains entire trip as JSON)
-  var url=LIST_URL+'/items?$expand=fields($select=TripCode,TripStatus,TripData,AssignedPM)&$top=500';
+  var url=LIST_URL+'/items?$expand=fields($select=Title,TripData)&$top=500';
   spGet(url).then(function(data){
     trips={};
     var items=data.value||[];
@@ -395,11 +395,9 @@ function loadTrips(){
       if(!f)continue;
       var tripData={};
       try{tripData=JSON.parse(f.TripData||'{}');}catch(e){console.error('JSON parse error',e);continue;}
-      // Use TripCode as the key; fall back to SP item id
-      var key=f.TripCode||tripData.code||item.id;
+      // All data lives in TripData JSON
+      var key=tripData.code||item.id;
       tripData._spId=item.id;
-      tripData.status=f.TripStatus||tripData.status||'draft';
-      tripData.code=f.TripCode||tripData.code||key;
       trips[key]=tripData;
     }
     setSyncStatus('Synced '+new Date().toLocaleTimeString());
@@ -417,11 +415,10 @@ function spSaveTrip(trip){
   // Build a lean copy for SharePoint storage - images stored inline in TripData but we keep field columns small
   var tripJSON=JSON.stringify(trip);
   // SharePoint text fields have a ~255 char limit for indexed columns but unlimited for multiline text (TripData must be Multiline)
+  // Only use Title (always exists) + TripData (must be a Multiline Text column).
+  // All other data lives inside TripData JSON to avoid field name mismatches.
   var fields={
-    Title:trip.name||'Untitled',
-    TripCode:trip.code||'',
-    TripStatus:trip.status||'draft',
-    AssignedPM:trip.assignedPM||'',
+    Title:(trip.name||'Untitled')+' | '+(trip.code||'')+' | '+(trip.status||'draft'),
     TripData:tripJSON
   };
   if(trip._spId){
@@ -1111,15 +1108,20 @@ function checkHash(){
       }
     }
     // Fetch from SP
-    var url=LIST_URL+'/items?$expand=fields($select=TripCode,TripData)&$filter=fields/TripCode eq \''+code+'\'&$top=1';
+    var url=LIST_URL+'/items?$expand=fields($select=Title,TripData)&$top=500';
     fetch(url,{headers:{Authorization:'Bearer '+(spToken||'')}})
       .then(function(r){return r.json();})
       .then(function(data){
         var items=data.value||[];
-        if(items.length){
-          var trip=JSON.parse(items[0].fields.TripData||'{}');
-          renderTV(trip);
-          document.getElementById('sTraveler').style.display='block';
+        for(var i=0;i<items.length;i++){
+          try{
+            var t=JSON.parse(items[i].fields.TripData||'{}');
+            if(t.code&&t.code.toLowerCase()===code){
+              renderTV(t);
+              document.getElementById('sTraveler').style.display='block';
+              return;
+            }
+          }catch(e){}
         }
       }).catch(function(e){console.error('checkHash fetch error',e);});
   }
