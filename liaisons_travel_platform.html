@@ -385,7 +385,7 @@ function spDel(url){
 function loadTrips(){
   setSyncStatus('Loading...');
   // FIX 1/2: Fetch all items, each item = one trip (TripData contains entire trip as JSON)
-  var url=LIST_URL+'/items?$expand=fields($select=Title,TripData)&$top=500';
+  var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
   spGet(url).then(function(data){
     trips={};
     var items=data.value||[];
@@ -415,10 +415,9 @@ function spSaveTrip(trip){
   // Build a lean copy for SharePoint storage - images stored inline in TripData but we keep field columns small
   var tripJSON=JSON.stringify(trip);
   // SharePoint text fields have a ~255 char limit for indexed columns but unlimited for multiline text (TripData must be Multiline)
-  // Only use Title (always exists) + TripData (must be a Multiline Text column).
-  // All other data lives inside TripData JSON to avoid field name mismatches.
   var fields={
-    Title:(trip.name||'Untitled')+' | '+(trip.code||'')+' | '+(trip.status||'draft'),
+    Title:trip.name||'Untitled',
+    TripCode:trip.code||'',
     TripData:tripJSON
   };
   if(trip._spId){
@@ -1108,7 +1107,7 @@ function checkHash(){
       }
     }
     // Fetch from SP
-    var url=LIST_URL+'/items?$expand=fields($select=Title,TripData)&$top=500';
+    var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
     fetch(url,{headers:{Authorization:'Bearer '+(spToken||'')}})
       .then(function(r){return r.json();})
       .then(function(data){
