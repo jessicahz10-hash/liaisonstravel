@@ -316,7 +316,25 @@ function getEditorHTML(){
   '<div class="fg"><label class="fl">Client Name</label><input class="fi" id="fClient" placeholder="e.g. Faena Rose" style="margin-bottom:16px"/>'+
   '<label class="fl">Client Logo</label><div class="uz"><input type="file" accept="image/*" id="logoInput"/><p>Click or drag to upload</p></div><div id="logoPrev"></div></div></div>'+
   '<div class="fg"><label class="fl">Welcome Message</label><textarea class="fta" id="fWelcome" placeholder="A short welcome note..."></textarea></div>'+
-  '<div class="fg"><label class="fl">Coordinator WhatsApp</label><input class="fi" id="fPhone" placeholder="+1 305 000 0000"/></div></div>'+
+  '<div class="fg"><label class="fl">Coordinator WhatsApp</label><input class="fi" id="fPhone" placeholder="+1 305 000 0000"/></div>'+
+  '<div style="border-top:1px solid var(--b);margin:22px 0 18px"></div>'+
+  '<p style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);margin-bottom:16px">Hero Box Style</p>'+
+  '<div class="fr">'+
+  '<div class="fg"><label class="fl">Box Style</label>'+
+  '<select class="fsel" id="fBoxStyle">'+
+  '<option value="frosted-white">Frosted White</option>'+
+  '<option value="frosted-dark">Frosted Dark</option>'+
+  '<option value="none">No Box</option>'+
+  '</select></div>'+
+  '<div class="fg"><label class="fl">Box Opacity</label>'+
+  '<select class="fsel" id="fBoxOpacity">'+
+  '<option value="0.10">Very subtle (10%)</option>'+
+  '<option value="0.15" selected>Light (15%)</option>'+
+  '<option value="0.25">Medium (25%)</option>'+
+  '<option value="0.40">Strong (40%)</option>'+
+  '</select></div>'+
+  '</div>'+
+  '</div>'+
   '<div class="tp" id="tItinerary"><div id="daysC"></div><button class="addbtn" id="addDayBtn">+ Add Day</button></div>'+
   '<div class="tp" id="tPacking"><p style="font-size:11px;color:var(--gl);margin-bottom:12px">Drag to reorder</p><ul class="pl" id="packList"></ul><button class="addbtn" id="addPackBtn">+ Add Item</button></div>'+
   '<div class="tp" id="tInfo"><div id="infoC"></div><button class="addbtn" id="addInfoBtn">+ Add Section</button></div>'+
@@ -563,6 +581,8 @@ function openEditor(id){
   document.getElementById('edDeleteBtn').style.display=id?'block':'none';
   eHero=t.heroImg||null;
   eLogo=t.clientLogo||null;
+  var bsEl=document.getElementById('fBoxStyle');if(bsEl)bsEl.value=t.boxStyle||'frosted-white';
+  var boEl=document.getElementById('fBoxOpacity');if(boEl)boEl.value=t.boxOpacity||'0.15';
   showImgPrev('heroPrev',eHero);
   showImgPrev('logoPrev',eLogo);
   eDays=t.days?JSON.parse(JSON.stringify(t.days)):[];
@@ -630,6 +650,8 @@ function saveTrip(auto){
     status:document.getElementById('fStatus').value,
     assignedPM:document.getElementById('fPM').value,
     heroImg:eHero,
+    boxStyle:document.getElementById('fBoxStyle').value,
+    boxOpacity:document.getElementById('fBoxOpacity').value,
     clientName:document.getElementById('fClient').value,
     clientLogo:eLogo,
     welcome:document.getElementById('fWelcome').value,
@@ -988,6 +1010,18 @@ function buildTravelerHTML(trip){
   }
   addSec('City Guide',cityBody);
 
+  // Build dynamic hero box style
+  var boxStyle=trip.boxStyle||'frosted-white';
+  var boxOp=parseFloat(trip.boxOpacity)||0.15;
+  var hboxBg='';
+  if(boxStyle==='none'){
+    hboxBg='background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;';
+  } else if(boxStyle==='frosted-dark'){
+    hboxBg='background:rgba(0,0,0,'+boxOp+');backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);';
+  } else {
+    hboxBg='background:rgba(255,255,255,'+boxOp+');backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);';
+  }
+
   var navItems='';
   for(var i=0;i<tabs.length;i++){navItems+='<div class="ni'+(i===0?' active':'')+'" onclick="goTab('+i+',this)">'+tabs[i]+'</div>';}
 
@@ -1010,7 +1044,7 @@ function buildTravelerHTML(trip){
 '.hbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}'+
 '.hdk{position:absolute;inset:0;background:rgba(0,0,0,.32)}'+
 '.hov{position:relative;z-index:2;text-align:center;padding:24px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}'+
-'.hbox{background:rgba(255,255,255,.22);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.35);padding:32px 48px;display:flex;flex-direction:column;align-items:center;max-width:520px;width:90%}'+
+'.hbox{padding:22px 36px;display:flex;flex-direction:column;align-items:center;max-width:420px;width:85%}'+
 '.htl{color:#fff;font-size:clamp(18px,4vw,42px);font-weight:100;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;width:100%;text-align:center}'+
 '.hmt{color:rgba(255,255,255,.9);font-size:11px;letter-spacing:.22em;text-transform:uppercase;margin-bottom:0;text-align:center}'+
 '.hlt{margin-top:22px;display:flex;justify-content:center;width:100%}'+
@@ -1053,7 +1087,7 @@ function buildTravelerHTML(trip){
 (trip.heroImg?'<img class="hbg" src="'+trip.heroImg+'" alt=""/>':'')+
 '<div class="hdk"></div>'+
 '<div class="hov">'+
-'<div class="hbox">'+
+'<div class="hbox" style="'+hboxBg+'">'+
 clientBlock+
 (trip.destinations?'<div class="htl">'+(trip.destinations||'')+'</div>':'')+
 (trip.dates?'<div class="hmt">'+(trip.dates||'')+'</div>':'')+
