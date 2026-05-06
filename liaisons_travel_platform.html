@@ -346,7 +346,8 @@ function getPreviewHTML(){
 
 // SHAREPOINT
 var GRAPH_BASE='https://graph.microsoft.com/v1.0';
-var LIST_URL=GRAPH_BASE+'/sites/'+encodeURIComponent(SP_SITE_URL)+'/lists/'+SP_LIST_ID;
+// Use hostname:path format required by Graph API
+var LIST_URL=GRAPH_BASE+'/sites/liaisonscorp.sharepoint.com:/sites/LiaisonsTravelApp:/lists/'+SP_LIST_ID;
 
 function spGet(url){
   return getToken().then(function(token){
@@ -547,10 +548,33 @@ function openEditor(id){
   setSaveStatus('');
   updateShare(t.code||'');
   switchTab('tSetup');
+  hasUnsavedChanges=false;
+  clearTimeout(autoSaveTimer);
   document.getElementById('editorModal').classList.add('open');
 }
 
-function closeEditor(){document.getElementById('editorModal').classList.remove('open');}
+function closeEditor(){
+  if(hasUnsavedChanges){
+    if(!confirm('You have unsaved changes. Close anyway?'))return;
+  }
+  clearTimeout(autoSaveTimer);
+  hasUnsavedChanges=false;
+  document.getElementById('editorModal').classList.remove('open');
+}
+
+var autoSaveTimer=null;
+var hasUnsavedChanges=false;
+
+function markDirty(){
+  hasUnsavedChanges=true;
+  setSaveStatus('Unsaved changes...');
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer=setTimeout(function(){
+    var name=document.getElementById('fName').value.trim();
+    var code=document.getElementById('fCode').value.trim();
+    if(name&&code)saveTrip(true);
+  },5000);
+}
 
 function switchTab(id){
   document.querySelectorAll('.tp').forEach(function(p){p.classList.remove('active');});
@@ -565,10 +589,11 @@ function updateShare(code){
   document.getElementById('shareCode').textContent=code||'(save trip first)';
 }
 
-function saveTrip(){
+// auto=true means called by autosave timer (no alert on missing fields, no UI disruption)
+function saveTrip(auto){
   var name=document.getElementById('fName').value.trim();
   var code=document.getElementById('fCode').value.trim().toLowerCase().replace(/\s+/g,'-');
-  if(!name||!code){alert('Trip Name and Trip Code are required.');return;}
+  if(!name||!code){if(!auto)alert('Trip Name and Trip Code are required.');return;}
 
   // Build complete trip object
   var trip={
@@ -609,7 +634,9 @@ function saveTrip(){
   document.getElementById('saveTripBtn').disabled=true;
 
   spSaveTrip(trip).then(function(){
-    setSaveStatus('Saved!');
+    hasUnsavedChanges=false;
+    clearTimeout(autoSaveTimer);
+    setSaveStatus(auto?'Auto-saved ✓':'Saved!');
     setSyncStatus('Synced '+new Date().toLocaleTimeString());
     setTimeout(function(){setSaveStatus('');},3000);
     document.getElementById('saveTripBtn').disabled=false;
@@ -699,19 +726,19 @@ document.addEventListener('click',function(e){
 
 document.addEventListener('change',function(e){
   var df=e.target.getAttribute('data-df');
-  if(df){var p=df.split('-');eDays[p[0]][p[1]]=e.target.value;renderDays();return;}
+  if(df){var p=df.split('-');eDays[p[0]][p[1]]=e.target.value;renderDays();markDirty();return;}
   var af=e.target.getAttribute('data-af');
-  if(af){var p=af.split('-');eDays[p[0]].activities[p[1]][p[2]]=e.target.value;return;}
+  if(af){var p=af.split('-');eDays[p[0]].activities[p[1]][p[2]]=e.target.value;markDirty();return;}
   var pf=e.target.getAttribute('data-pf');
-  if(pf){var p=pf.split('-');ePack[p[0]][p[1]]=e.target.value;return;}
+  if(pf){var p=pf.split('-');ePack[p[0]][p[1]]=e.target.value;markDirty();return;}
   var inf=e.target.getAttribute('data-inf');
-  if(inf){var p=inf.split('-');eInfo[p[0]][p[1]]=e.target.value;return;}
+  if(inf){var p=inf.split('-');eInfo[p[0]][p[1]]=e.target.value;markDirty();return;}
   var dcf=e.target.getAttribute('data-dcf');
-  if(dcf){var p=dcf.split('-');eDocs[p[0]][p[1]]=e.target.value;return;}
+  if(dcf){var p=dcf.split('-');eDocs[p[0]][p[1]]=e.target.value;markDirty();return;}
   var cf=e.target.getAttribute('data-cf');
-  if(cf){var p=cf.split('-');eCity[p[0]][p[1]]=e.target.value;return;}
-  if(e.target.id==='heroInput'&&e.target.files[0])handleImgFile(e.target.files[0],'hero');
-  if(e.target.id==='logoInput'&&e.target.files[0])handleImgFile(e.target.files[0],'logo');
+  if(cf){var p=cf.split('-');eCity[p[0]][p[1]]=e.target.value;markDirty();return;}
+  if(e.target.id==='heroInput'&&e.target.files[0]){handleImgFile(e.target.files[0],'hero');markDirty();}
+  if(e.target.id==='logoInput'&&e.target.files[0]){handleImgFile(e.target.files[0],'logo');markDirty();}
   var ap=e.target.getAttribute('data-ap');
   if(ap&&e.target.files[0]){
     var p=ap.split('-');var f=e.target.files[0];
@@ -1124,12 +1151,13 @@ function wireButtons(){
     renderDays();
     var dbs=document.querySelectorAll('.dib');
     if(dbs.length)dbs[dbs.length-1].classList.add('open');
+    markDirty();
   });
-  document.getElementById('addPackBtn').addEventListener('click',function(){ePack.push({label:'',category:''});renderPack();});
-  document.getElementById('addInfoBtn').addEventListener('click',function(){eInfo.push({title:'',content:''});renderInfo();});
+  document.getElementById('addPackBtn').addEventListener('click',function(){ePack.push({label:'',category:''});renderPack();markDirty();});
+  document.getElementById('addInfoBtn').addEventListener('click',function(){eInfo.push({title:'',content:''});renderInfo();markDirty();});
   document.getElementById('addDocUpBtn').addEventListener('click',addDocUpload);
-  document.getElementById('addDocLinkBtn').addEventListener('click',function(){eDocs.push({type:'link',label:'',url:''});renderDocs();});
-  document.getElementById('addCityBtn').addEventListener('click',function(){eCity.push({name:'',imgData:null,tips:''});renderCity();});
+  document.getElementById('addDocLinkBtn').addEventListener('click',function(){eDocs.push({type:'link',label:'',url:''});renderDocs();markDirty();});
+  document.getElementById('addCityBtn').addEventListener('click',function(){eCity.push({name:'',imgData:null,tips:''});renderCity();markDirty();});
   document.getElementById('copyLinkBtn').addEventListener('click',function(){
     var l=document.getElementById('shareLink');
     l.select();
@@ -1146,6 +1174,12 @@ function wireButtons(){
     if(tab)switchTab(tab.getAttribute('data-tab'));
   });
   if(currentAccount)document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
+  // Mark dirty on any setup field change
+  ['fName','fCode','fDest','fDates','fStatus','fPM','fClient','fWelcome','fPhone'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.addEventListener('input',markDirty);
+    if(el)el.addEventListener('change',markDirty);
+  });
 }
 
 document.getElementById('msLoginBtn').addEventListener('click',signIn);
