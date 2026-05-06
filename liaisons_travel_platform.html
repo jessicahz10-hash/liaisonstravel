@@ -1071,17 +1071,16 @@ contactBtn+
 'var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");'+
 'pill.classList.add("active");var b=document.getElementById("day"+idx);if(b)b.scrollIntoView({behavior:"smooth",block:"start"});'+
 '}'+
-// FIX 3: tMap - load src from data-q attribute on click
+// Map uses Google Maps embed with proper search query
 'function tMap(id,btn){'+
 'var f=document.getElementById(id);if(!f)return;'+
 'var isOpen=f.classList.toggle("open");'+
 'if(isOpen&&!f.getAttribute("data-loaded")){'+
-'var q=f.getAttribute("data-q");'+
+'var q=decodeURIComponent(f.getAttribute("data-q")||"");'+
 'if(q){'+
 'f.setAttribute("data-loaded","1");'+
-'f.src="https://www.openstreetmap.org/export/embed.html?bbox=-0.1,51.4,0.1,51.6&layer=mapnik&marker="+encodeURIComponent(q);'+
-// Actually use a search-based embed that works reliably
-'f.src="https://maps.google.com/maps?q="+q+"&output=embed&z=15&hl=en";'+
+// Use OpenStreetMap search embed - reliable, no API key, shows correct location
+'f.src="https://www.openstreetmap.org/export/embed.html?layer=mapnik&query="+encodeURIComponent(q);'+
 '}'+
 '}'+
 'btn.textContent=isOpen?"Hide Map":"View on Map";'+
