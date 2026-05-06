@@ -942,14 +942,13 @@ function buildTravelerHTML(trip){
         var a=acts[ai];
         var mid='m'+di+'_'+ai;
         // FIX 3: Map uses data-src, toggled on click, query properly encoded
-        var mapSrc=a.mapQuery?'https://maps.google.com/maps?q='+encodeURIComponent(a.mapQuery)+'&output=embed&z=15':'';
         body+='<div class="ac">'+
           (a.photo?'<img src="'+a.photo+'" style="width:100%;height:200px;object-fit:cover;display:block" alt=""/>':'')+
           '<div class="acb">'+
           (a.time?'<div class="atm">'+a.time+'</div>':'')+
           '<div class="atl">'+(a.title||'')+'</div>'+
           (a.desc?'<div class="ads">'+a.desc+'</div>':'')+
-          (mapSrc?'<button class="mbt" onclick="tMap(\''+mid+'\',this)">View on Map</button><iframe id="'+mid+'" class="mfr" src="" data-q="'+encodeURIComponent(a.mapQuery)+'" allowfullscreen loading="lazy"></iframe>':'')+
+          (a.mapQuery?'<a class="mbt" href="https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a.mapQuery)+'" target="_blank">&#x1F4CD; View on Google Maps</a>':'')+
           '</div></div>';
       }
       body+='</div>';
@@ -1067,9 +1066,7 @@ function buildTravelerHTML(trip){
 '.atl{font-size:14px;font-weight:400;margin-bottom:3px}'+
 '.ads{font-size:12px;color:#808080;line-height:1.6;margin-bottom:9px}'+
 /* FIX 3: Map button and iframe */
-'.mbt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#5B2D8E;background:none;border:1px solid #c9a8e8;padding:5px 12px;cursor:pointer;font-family:inherit;margin-top:4px}'+
-'.mfr{width:100%;height:260px;border:none;display:none;margin-top:9px}'+
-'.mfr.open{display:block}'+
+'.mbt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#5B2D8E;background:none;border:1px solid #c9a8e8;padding:5px 12px;font-family:inherit;margin-top:4px;border-radius:3px;display:inline-block;text-decoration:none}'+
 '.pi{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #E0E0E0;cursor:pointer}.pi:last-child{border-bottom:none}'+
 '.pk{width:17px;height:17px;border:1px solid #E0E0E0;flex-shrink:0;display:flex;align-items:center;justify-content:center}'+
 '.pi.chk .pk{background:#5B2D8E;border-color:#5B2D8E}.pi.chk .pk::after{content:"\\2713";color:#fff;font-size:10px}'+
@@ -1112,19 +1109,7 @@ contactBtn+
 'pill.classList.add("active");var b=document.getElementById("day"+idx);if(b)b.scrollIntoView({behavior:"smooth",block:"start"});'+
 '}'+
 // Map uses Google Maps embed with proper search query
-'function tMap(id,btn){'+
-'var f=document.getElementById(id);if(!f)return;'+
-'var isOpen=f.classList.toggle("open");'+
-'if(isOpen&&!f.getAttribute("data-loaded")){'+
-'var q=decodeURIComponent(f.getAttribute("data-q")||"");'+
-'if(q){'+
-'f.setAttribute("data-loaded","1");'+
-// Use OpenStreetMap search embed - reliable, no API key, shows correct location
-'f.src="https://www.openstreetmap.org/export/embed.html?layer=mapnik&query="+encodeURIComponent(q);'+
-'}'+
-'}'+
-'btn.textContent=isOpen?"Hide Map":"View on Map";'+
-'}'+
++
 '(function(){'+
 'var days='+daysJSON+';'+
 'if(!days.length)return;'+
