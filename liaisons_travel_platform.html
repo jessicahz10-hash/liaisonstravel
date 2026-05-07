@@ -722,6 +722,7 @@ function saveTrip(auto){
     setSaveStatus('Save failed: '+e.message);
     document.getElementById('saveTripBtn').disabled=false;
     console.error('saveTrip error',e);
+    alert('Save failed: '+e.message+'\n\nTry refreshing the page and signing in again.');
   });
 }
 
