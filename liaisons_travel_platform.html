@@ -644,8 +644,8 @@ function switchTab(id){
 }
 
 function updateShare(code){
-  document.getElementById('shareLink').value=REDIRECT_URI+'#trip/'+(code||'');
-  document.getElementById('shareCode').textContent=code||'(save trip first)';
+  var sl=document.getElementById('shareLink');if(sl)sl.value=REDIRECT_URI+'#trip/'+(code||'');
+  var sc=document.getElementById('shareCode');if(sc)sc.textContent=code||'(save trip first)';
 }
 
 // auto=true means called by autosave timer (no alert on missing fields, no UI disruption)
