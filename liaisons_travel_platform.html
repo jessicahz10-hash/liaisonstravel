@@ -42,6 +42,7 @@ var trips={};
 var curId=null;
 var eDays=[],ePack=[],eInfo=[],eDocs=[],eCity=[];
 var eHero=null,eLogo=null,dragSrc=null,deferredPrompt=null;
+var eBoxStyle='frosted-white',eBoxOpacity='0.15',eBrandColor='#5B2D8E';
 var currentFilter='all';
 
 function setErr(msg){var el=document.getElementById('loginErr');if(el)el.textContent=msg;}
@@ -593,9 +594,10 @@ function openEditor(id){
   document.getElementById('edDeleteBtn').style.display=id?'block':'none';
   eHero=t.heroImg||null;
   eLogo=t.clientLogo||null;
-  var bsEl=document.getElementById('fBoxStyle');if(bsEl)bsEl.value=t.boxStyle||'frosted-white';
-  var boEl=document.getElementById('fBoxOpacity');if(boEl)boEl.value=t.boxOpacity||'0.15';
-  var bcEl=document.getElementById('fBrandColor');if(bcEl)bcEl.value=t.brandColor||'#5B2D8E';
+  eBoxStyle=t.boxStyle||'frosted-white';eBoxOpacity=t.boxOpacity||'0.15';eBrandColor=t.brandColor||'#5B2D8E';
+  var bsEl=document.getElementById('fBoxStyle');if(bsEl)bsEl.value=eBoxStyle;
+  var boEl=document.getElementById('fBoxOpacity');if(boEl)boEl.value=eBoxOpacity;
+  var bcEl=document.getElementById('fBrandColor');if(bcEl)bcEl.value=eBrandColor;
   showImgPrev('heroPrev',eHero);
   showImgPrev('logoPrev',eLogo);
   eDays=t.days?JSON.parse(JSON.stringify(t.days)):[];
@@ -671,9 +673,9 @@ function saveTrip(auto){
     status:document.getElementById('fStatus').value,
     assignedPM:document.getElementById('fPM').value,
     heroImg:eHero,
-    boxStyle:(document.getElementById('fBoxStyle')||{value:'frosted-white'}).value,
-    boxOpacity:(document.getElementById('fBoxOpacity')||{value:'0.15'}).value,
-    brandColor:(document.getElementById('fBrandColor')||{value:'#5B2D8E'}).value||'#5B2D8E',
+    boxStyle:(function(){var el=document.getElementById('fBoxStyle');if(el)eBoxStyle=el.value;return eBoxStyle;})(),
+    boxOpacity:(function(){var el=document.getElementById('fBoxOpacity');if(el)eBoxOpacity=el.value;return eBoxOpacity;})(),
+    brandColor:(function(){var el=document.getElementById('fBrandColor');if(el)eBrandColor=el.value;return eBrandColor;})(),
     clientName:document.getElementById('fClient').value,
     clientLogo:eLogo,
     welcome:document.getElementById('fWelcome').value,
