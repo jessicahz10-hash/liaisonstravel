@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>LIAISONS TRAVEL</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--purple:#5B2D8E;--pl:#7B4DB0;--gray:#808080;--gl:#B0B0B0;--bg:#F5F5F5;--dark:#2D2D2D;--w:#FFF;--b:#E0E0E0}
+body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w);color:var(--dark);margin:0;padding:0}
+</style>
+</head>
+<body>
+
+<div id="sLogin" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="text-align:center;padding:56px 36px;max-width:400px;width:100%">
+    <img src="https://trips.liaisonstravel.com/LIAISONS_TRAVEL_LOGO-01.png" style="height:28px;width:auto;display:block;margin:0 auto" alt="LIAISONS TRAVEL"/>
+    <p style="color:#B0B0B0;letter-spacing:.2em;font-size:10px;text-transform:uppercase;margin-top:8px">Trip Management Platform</p>
+    <div style="width:36px;height:1px;background:#5B2D8E;margin:10px auto 36px"></div>
+    <p style="font-size:13px;color:#808080;margin-bottom:24px;line-height:1.6">Sign in with your Liaisons Microsoft account.</p>
+    <button id="msLoginBtn" style="background:#5B2D8E;color:#fff;border:none;padding:14px 32px;letter-spacing:.15em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%;display:flex;align-items:center;justify-content:center;gap:12px">
+      <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Sign in with Microsoft
+    </button>
+    <div id="loginErr" style="color:#c0392b;font-size:12px;margin-top:14px;min-height:16px"></div>
+  </div>
+</div>
+
+<div id="appShell" style="display:none"></div>
+
+<script>
+var LOGO_B64='https://trips.liaisonstravel.com/LIAISONS_TRAVEL_LOGO-01.png';
+var SP_CLIENT_ID='1b2a2847-d244-42a7-b8a4-467ea52bce69';
+var SP_TENANT='2c8fc928-8e15-4ede-971c-9395fb444514';
+var SP_SITE_URL='https://liaisonscorp.sharepoint.com/sites/LiaisonsTravelApp';
+var SP_LIST_ID='e872be72-37f8-4562-984c-aad8b0b20d27';
+var REDIRECT_URI=window.location.origin+window.location.pathname;
+var msalInstance=null;
+var currentAccount=null;
+var spToken=null;
+var trips={};
+var curId=null;
+var eDays=[],ePack=[],eInfo=[],eDocs=[],eCity=[];
+var eHero=null,eLogo=null,dragSrc=null,deferredPrompt=null;
+var currentFilter='all';
+
+function setErr(msg){var el=document.getElementById('loginErr');if(el)el.textContent=msg;}
+
+function loadMSAL(){
+  var s=document.createElement('script');
+  s.src='https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js';
+  s.crossOrigin='anonymous';
+  s.onload=function(){initMSAL();};
+  s.onerror=function(){
+    var s2=document.createElement('script');
+    s2.src='https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.1/lib/msal-browser.min.js';
+    s2.crossOrigin='anonymous';
+    s2.onload=function(){initMSAL();};
+    s2.onerror=function(){setErr('Could not load Microsoft auth. Please check your internet connection.');};
+    document.head.appendChild(s2);
+  };
+  document.head.appendChild(s);
+}
+
+function initMSAL(){
+  var config={
+    auth:{
+      clientId:SP_CLIENT_ID,
+      authority:'https://login.microsoftonline.com/'+SP_TENANT,
+      redirectUri:REDIRECT_URI,
+      navigateToLoginRequestUrl:true
+    },
+    cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:true}
+  };
+  msalInstance=new msal.PublicClientApplication(config);
+  msalInstance.handleRedirectPromise().then(function(r){
+    if(r){currentAccount=r.account;spToken=r.accessToken;onSignedIn();}
+    else{
+      var accounts=msalInstance.getAllAccounts();
+      if(accounts.length>0){currentAccount=accounts[0];getToken().then(function(){onSignedIn();}).catch(function(){showLogin();});}
+      else{showLogin();}
+    }
+  }).catch(function(e){console.error(e);showLogin();});
+}
+
+function showLogin(){document.getElementById('sLogin').style.display='flex';setErr('');}
+function signIn(){if(!msalInstance){setErr('Auth loading... please wait.');return;}setErr('Redirecting to Microsoft...');msalInstance.loginRedirect({scopes:['https://graph.microsoft.com/Sites.ReadWrite.All']});}
+function signOut(){if(msalInstance&&currentAccount){msalInstance.logoutRedirect({account:currentAccount});}else{showLogin();}}
+
+function getToken(){
+  if(!msalInstance||!currentAccount)return Promise.reject('Not signed in');
+  return msalInstance.acquireTokenSilent({scopes:['https://graph.microsoft.com/Sites.ReadWrite.All'],account:currentAccount})
+    .then(function(r){spToken=r.accessToken;return spToken;})
+    .catch(function(){return msalInstance.acquireTokenRedirect({scopes:['https://graph.microsoft.com/Sites.ReadWrite.All'],account:currentAccount});});
+}
+
+function onSignedIn(){
+  document.getElementById('sLogin').style.display='none';
+  buildApp();
+  // FIX 4: Refresh token every 45 min to prevent expiry
+  setInterval(function(){
+    getToken().catch(function(){
+      setSyncStatus('Session expired - please refresh the page');
+    });
+  }, 45*60*1000);
+  // Check hash BEFORE loading trips so traveler view works without auth
+  var h=window.location.hash;
+  if(h.indexOf('#trip/')===0){checkHash();}
+  else{loadTrips();}
+}
+
+// BUILD APP
+function buildApp(){
+  var shell=document.getElementById('appShell');
+  shell.style.display='block';
+  shell.innerHTML=getAppHTML();
+  wireButtons();
+}
+
+function getAppHTML(){
+  return '<style>'+getCSS()+'</style>'+getDashHTML()+getEditorHTML()+getTravelerHTML()+getPreviewHTML()+getSettingsHTML();
+}
+
+function getSettingsHTML(){
+  return '<div class="mo" id="settingsModal">'+
+  '<div class="md" style="max-width:500px">'+
+  '<div class="mh"><h2>Settings</h2><button class="mcl" id="settingsCloseBtn">&times;</button></div>'+
+  '<div class="mb">'+
+  '<p style="font-size:12px;color:var(--gray);line-height:1.7;margin-bottom:22px">Paste your GitHub Personal Access Token below. It is stored only in your browser and never shared.</p>'+
+  '<div class="fg"><label class="fl">Anthropic API Key</label>'+
+  '<input class="fi" id="anthropicKey" type="password" placeholder="sk-ant-..."/>'+
+  '<p style="font-size:10px;color:var(--gl);margin-top:5px">For AI PDF itinerary pre-fill. Get from console.anthropic.com → API Keys.</p></div>'+
+  '<div style="border-top:1px solid var(--b);margin:18px 0"></div>'+
+  '<div class="fg"><label class="fl">GitHub Token</label>'+
+  '<input class="fi" id="ghToken" type="password" placeholder="ghp_..."/>'+
+  '<p style="font-size:10px;color:var(--gl);margin-top:5px">Needs <strong>repo</strong> scope. Generate at github.com → Settings → Developer Settings → Personal Access Tokens.</p></div>'+
+  '<div class="fg"><label class="fl">GitHub Repo Owner</label>'+
+  '<input class="fi" id="ghOwner" placeholder="jessicahz10-hash"/></div>'+
+  '<div class="fg"><label class="fl">GitHub Repo Name</label>'+
+  '<input class="fi" id="ghRepo" placeholder="liaisonstravel"/></div>'+
+  '<div class="fg"><label class="fl">Trips Folder (in repo)</label>'+
+  '<input class="fi" id="ghFolder" placeholder="trips"/></div>'+
+  '<div class="fg" style="margin-top:4px"><label class="fl">Custom Domain (optional)</label>'+
+  '<input class="fi" id="ghDomain" placeholder="trips.liaisonstravel.com"/>'+
+  '<p style="font-size:10px;color:var(--gl);margin-top:5px">If set, client links will use this domain instead of github.io</p></div>'+
+  '<div style="background:#f3eefa;border:1px solid #c9a8e8;padding:13px;font-size:11px;color:var(--purple);line-height:1.7;margin-top:4px">'+
+  'Client links will be:<br><strong>https://trips.liaisonstravel.com/trips/[tripcode].html</strong></div>'+
+  '</div>'+
+  '<div class="mf"><div></div><div style="display:flex;gap:8px;align-items:center">'+
+  '<span id="settingsSaveStatus" style="font-size:11px;color:var(--gl);font-style:italic"></span>'+
+  '<button class="bp" id="settingsSaveBtn" style="width:auto;padding:12px 28px">Save Settings</button>'+
+  '</div></div>'+
+  '</div></div>';
+}
+
+function getCSS(){
+  return '.bp{background:var(--purple);color:#fff;border:none;padding:12px 32px;letter-spacing:.15em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit}'+
+'.bp:hover{background:var(--pl)}.bs{background:transparent;color:var(--purple);border:1px solid var(--purple);padding:9px 20px;letter-spacing:.12em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit}.bs:hover{background:var(--purple);color:#fff}'+
+'.bg{background:transparent;color:var(--gray);border:1px solid var(--b);padding:7px 16px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit}.bg:hover{border-color:var(--gray)}'+
+'.bd{background:transparent;color:#c0392b;border:1px solid #c0392b;padding:7px 13px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit}'+
+'.status{font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:20px}'+
+'.status.draft{background:#f5f5f5;color:#808080;border:1px solid #e0e0e0}'+
+'.status.pending{background:#fff8e6;color:#e6a817;border:1px solid #f0d080}'+
+'.status.active{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}'+
+'.status.completed{background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da}'+
+'.status.archived{background:#f5f5f5;color:#b0b0b0;border:1px solid #e0e0e0}'+
+'.dh{background:var(--w);border-bottom:1px solid var(--b);padding:16px 36px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}'+
+'.db{max-width:1100px;margin:0 auto;padding:40px 22px}'+
+'.filter-bar{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap}'+
+'.fbtn{background:transparent;border:1px solid var(--b);padding:5px 14px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:var(--gray);border-radius:20px}'+
+'.fbtn.active{background:var(--purple);border-color:var(--purple);color:#fff}'+
+'.tg{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:20px}'+
+'.tc{background:var(--w);border:1px solid var(--b);overflow:hidden}'+
+'.tch{height:148px;background:linear-gradient(135deg,var(--purple),#3a1a5e);position:relative;overflow:hidden}'+
+'.tch img{width:100%;height:100%;object-fit:cover}'+
+'.tco{position:absolute;inset:0;background:rgba(0,0,0,.3);display:flex;flex-direction:column;justify-content:flex-end;padding:12px}'+
+'.tco h3{color:#fff;font-size:12px;letter-spacing:.14em;font-weight:300;text-transform:uppercase}'+
+'.tco p{color:rgba(255,255,255,.72);font-size:10px}'+
+'.tcb{padding:12px}.tmeta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;align-items:center}'+
+'.badge{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border:1px solid var(--b);color:var(--gray)}'+
+'.tact{display:flex;gap:5px;flex-wrap:wrap}'+
+'.ntc{border:1px dashed var(--b);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;cursor:pointer;background:var(--w);gap:9px;color:var(--gl)}'+
+'.ntc:hover{border-color:var(--purple);color:var(--purple)}'+
+'.ntc .plus{font-size:28px;font-weight:100}'+
+'.ntc span{font-size:10px;letter-spacing:.15em;text-transform:uppercase}'+
+'.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;overflow-y:auto}'+
+'.mo.open{display:flex;align-items:flex-start;justify-content:center;padding:18px}'+
+'.md{background:var(--w);width:100%;max-width:860px;margin:auto}'+
+'.mh{padding:22px 26px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}'+
+'.mh h2{font-size:12px;letter-spacing:.2em;font-weight:300;text-transform:uppercase}'+
+'.mcl{background:none;border:none;font-size:22px;cursor:pointer;color:var(--gray)}'+
+'.mb{padding:26px}.mf{padding:16px 26px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;gap:9px}'+
+'.fg{margin-bottom:20px}'+
+'.fl{display:block;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);margin-bottom:7px}'+
+'.fi{width:100%;border:none;border-bottom:1px solid var(--b);padding:8px 0;font-size:14px;font-weight:300;outline:none;background:transparent;font-family:inherit}'+
+'.fi:focus{border-bottom-color:var(--purple)}'+
+'.fta{width:100%;border:1px solid var(--b);padding:9px 11px;font-size:14px;font-weight:300;outline:none;resize:vertical;min-height:80px;font-family:inherit}'+
+'.fta:focus{border-color:var(--purple)}'+
+'.fr{display:grid;grid-template-columns:1fr 1fr;gap:18px}'+
+'.fsel{width:100%;border:none;border-bottom:1px solid var(--b);padding:8px 0;font-size:14px;font-weight:300;outline:none;background:transparent;font-family:inherit;color:var(--dark)}'+
+'.ftabs{display:flex;border-bottom:1px solid var(--b);margin-bottom:22px;overflow-x:auto}'+
+'.ftab{padding:10px 16px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:var(--gl);font-family:inherit}'+
+'.ftab.active{color:var(--purple);border-bottom-color:var(--purple)}'+
+'.tp{display:none}.tp.active{display:block}'+
+'.uz{border:1px dashed var(--b);padding:16px;text-align:center;cursor:pointer;position:relative;background:var(--bg)}'+
+'.uz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}'+
+'.uz p{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gl)}'+
+'.uprev{margin-top:7px;display:flex;align-items:center;gap:8px}'+
+'.uprev img{max-height:56px;max-width:130px;object-fit:contain;border:1px solid var(--b);background:#fff;padding:3px}'+
+'.uclear{background:none;border:none;color:#c0392b;cursor:pointer;font-size:10px;font-family:inherit}'+
+'.di{border:1px solid var(--b);margin-bottom:12px}'+
+'.dih{padding:11px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--bg)}'+
+'.dih h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:300}'+
+'.dib{padding:14px;display:none}.dib.open{display:block}'+
+'.ab{border:1px solid var(--b);padding:13px;margin-bottom:9px;background:#fafafa}'+
+'.abh{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}'+
+'.abh h5{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gray)}'+
+'.ag{display:grid;grid-template-columns:72px 1fr;gap:9px;margin-bottom:9px}'+
+'.abot{display:grid;grid-template-columns:1fr 1fr;gap:9px}'+
+'.addbtn{background:none;border:1px dashed var(--b);padding:6px 12px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;color:var(--gray);margin-top:5px;width:100%;font-family:inherit}'+
+'.addbtn:hover{border-color:var(--purple);color:var(--purple)}'+
+'.rb{background:none;border:none;color:var(--gl);cursor:pointer;font-size:18px;padding:2px;line-height:1}.rb:hover{color:#c0392b}'+
+'.pl{list-style:none}'+
+'.pei{display:flex;align-items:center;gap:7px;padding:7px 9px;border:1px solid var(--b);margin-bottom:5px;background:var(--w);user-select:none}'+
+'.pei.dragging{opacity:.4;border-color:var(--purple)}.pei.drag-over{border-color:var(--purple);background:#f3eefa}'+
+'.dh2{color:var(--gl);font-size:14px;cursor:grab;padding:0 2px}'+
+'.pei input{border:none;border-bottom:1px solid var(--b);padding:2px 0;font-size:13px;font-weight:300;outline:none;background:transparent;font-family:inherit}'+
+'.pm{flex:1}.pcat{width:105px}'+
+'.dei{display:flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid var(--b);margin-bottom:6px}'+
+'.dtb{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;white-space:nowrap}'+
+'.dtb.pdf{background:#fff0f0;color:#c0392b;border:1px solid #f5c6c6}'+
+'.dtb.link{background:#f0f4ff;color:var(--purple);border:1px solid #c6d0f5}'+
+'.ci{border:1px solid var(--b);padding:13px;margin-bottom:9px}'+
+'.lkbox{background:var(--bg);border:1px solid var(--b);padding:10px 13px;display:flex;align-items:center;gap:9px;margin-top:12px}'+
+'.lkbox input{flex:1;background:transparent;border:none;font-size:13px;color:var(--purple);outline:none;font-family:inherit}'+
+'.lkcopy{background:var(--purple);color:#fff;border:none;padding:6px 13px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit}'+
+/* FIX 5: Preview overlay - proper scroll, full height */
+'.pvo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:2000;overflow-y:auto}'+
+'.pvo.open{display:block}'+
+'.pvo-inner{display:flex;flex-direction:column;align-items:center;padding:18px;min-height:100%;gap:16px}'+
+'.pvcl{color:#fff;background:none;border:1px solid rgba(255,255,255,.3);padding:7px 18px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;font-family:inherit;flex-shrink:0}'+
+'.pshell{width:375px;background:#111;border-radius:50px;padding:11px;box-shadow:0 0 0 2px #333,0 40px 100px rgba(0,0,0,.8);position:relative;flex-shrink:0}'+
+'.pshell::before{content:"";position:absolute;top:11px;left:50%;transform:translateX(-50%);width:100px;height:28px;background:#111;border-radius:0 0 16px 16px;z-index:5}'+
+'.pscreen{width:100%;border-radius:40px;overflow:hidden;background:#fff}'+
+/* FIX 5: iframe tall enough to show full content + scroll inside */
+'.pscreen iframe{width:375px;height:700px;border:none;display:block}'+
+'#deskOverlay{display:none;position:fixed;inset:0;z-index:3000;background:#fff;flex-direction:column}'+
+'#deskOverlay.open{display:flex}'+
+/* FIX 3: Traveler view - proper scrolling, no height clipping */
+'#sTraveler{overflow-y:auto}'+
+'.tvh{position:relative;height:75vh;min-height:380px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}'+
+'.tvhbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}'+
+'.tvhdark{position:absolute;inset:0;background:rgba(0,0,0,.35)}'+
+'.tvhov{position:relative;z-index:2;text-align:center;padding:22px;width:100%;display:flex;flex-direction:column;align-items:center}'+
+/* FIX 4: Logo centered */
+'.tvclientlogo{margin-bottom:14px;width:100%;display:flex;justify-content:center;align-items:center}'+
+'.tvtitle{color:#fff;font-size:clamp(20px,5vw,52px);font-weight:100;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;text-align:center;width:100%}'+
+'.tvmeta{color:rgba(255,255,255,.75);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:24px;text-align:center}'+
+'.tvltlogo{opacity:.6;margin-top:10px;display:flex;justify-content:center;width:100%}'+
+'.tvback{position:absolute;top:18px;left:18px;z-index:10;color:rgba(255,255,255,.8);background:transparent;border:1px solid rgba(255,255,255,.4);padding:6px 13px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit}'+
+'.tvnav{position:sticky;top:0;z-index:100;background:var(--w);border-bottom:1px solid var(--b);display:flex;overflow-x:auto}'+
+'.tvnav::-webkit-scrollbar{display:none}'+
+'.tvni{padding:14px 22px;font-size:10px;letter-spacing:.17em;text-transform:uppercase;cursor:pointer;white-space:nowrap;color:var(--gl);border-bottom:2px solid transparent}'+
+'.tvni.active{color:var(--purple);border-bottom-color:var(--purple)}'+
+'.tvft{text-align:center;padding:36px 22px;border-top:1px solid var(--b)}'+
+'.tvftl{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:13px;flex-wrap:wrap}'+
+'.tvftl a{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gray);text-decoration:none}'+
+'.tvftl a:hover{color:var(--purple)}'+
+'.instb{position:fixed;bottom:0;left:0;right:0;background:var(--purple);color:#fff;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;z-index:999;transform:translateY(100%);transition:transform .3s}'+
+'.instb.show{transform:translateY(0)}'+
+'.instbtns{display:flex;gap:7px}'+
+'.instbtns button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:5px 11px;font-size:10px;cursor:pointer;font-family:inherit}'+
+'.instbtns button.yes{background:#fff;color:var(--purple)}'+
+'@media(max-width:580px){.fr,.abot{grid-template-columns:1fr}.dh{padding:13px 16px}.mb{padding:16px 13px}}';
+}
+
+function getDashHTML(){
+  return '<div id="sDash" style="background:var(--bg);min-height:100vh">'+
+  '<div class="dh">'+
+  '<img src="https://trips.liaisonstravel.com/LIAISONS_TRAVEL_LOGO-01.png" style="height:18px;width:auto;display:block" alt="LIAISONS TRAVEL"/>'+
+  '<div style="display:flex;gap:9px;align-items:center"><span style="font-size:10px;letter-spacing:.1em;color:var(--gl)" id="userLabel"></span><button class="bg" id="settingsBtn">Settings</button><button class="bg" id="logoutBtn">Sign Out</button></div>'+
+  '</div>'+
+  '<div class="db">'+
+  '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">'+
+  '<p style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gray)">All Trips</p>'+
+  '<div style="display:flex;align-items:center;gap:8px"><span id="syncStatus" style="font-size:10px;color:var(--gl)"></span><button class="bg" id="refreshBtn">Refresh</button></div>'+
+  '</div>'+
+  '<div class="filter-bar" id="filterBar">'+
+  '<button class="fbtn active" data-filter="all">All</button>'+
+  '<button class="fbtn" data-filter="draft">Draft</button>'+
+  '<button class="fbtn" data-filter="pending">Pending</button>'+
+  '<button class="fbtn" data-filter="active">Active</button>'+
+  '<button class="fbtn" data-filter="completed">Completed</button>'+
+  '<button class="fbtn" data-filter="archived">Archived</button>'+
+  '</div>'+
+  '<div class="tg" id="tripsGrid"></div>'+
+  '</div></div>';
+}
+
+function getEditorHTML(){
+  return '<div class="mo" id="editorModal">'+
+  '<div class="md">'+
+  '<div class="mh"><h2 id="edTitle">New Trip</h2><button class="mcl" id="edCloseBtn">&times;</button></div>'+
+  '<div class="mb">'+
+  '<div class="aib" id="aiSection"><div style="font-size:19px;margin-top:2px">✨</div>'+
+  '<div style="flex:1"><p style="font-size:12px;color:var(--purple);margin-bottom:2px;font-weight:400">AI Itinerary Pre-fill</p>'+
+  '<span style="font-size:10px;color:var(--gl)">Upload a PDF to auto-populate days</span>'+
+  '<div class="aist" id="aiSt"></div></div>'+
+  '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">'+
+  '<label class="bai" style="position:relative;cursor:pointer"><input type="file" accept="application/pdf" id="pdfInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"/>&#128196; Upload PDF</label>'+
+  '</div></div>'+
+  '<div id="pasteArea" style="display:none;margin-bottom:18px">'+
+  '<textarea class="fta" id="pasteText" placeholder="Paste itinerary text..." style="min-height:110px"></textarea>'+
+  '<div style="display:flex;gap:7px;margin-top:7px"><button class="bp" id="genBtn" style="width:auto;padding:8px 18px">Generate</button><button class="bg" id="cancelPasteBtn">Cancel</button></div></div>'+
+  '<div class="ftabs" id="editorTabs">'+
+  '<div class="ftab active" data-tab="tSetup">Setup</div>'+
+  '<div class="ftab" data-tab="tItinerary">Itinerary</div>'+
+  '<div class="ftab" data-tab="tPacking">Packing</div>'+
+  '<div class="ftab" data-tab="tInfo">General Info</div>'+
+  '<div class="ftab" data-tab="tDocs">Documents</div>'+
+  '<div class="ftab" data-tab="tCity">City Guide</div>'+
+  '</div>'+
+  '<div class="tp active" id="tSetup">'+
+  '<div class="fr"><div class="fg"><label class="fl">Trip Name *</label><input class="fi" id="fName" placeholder="e.g. Venice 2025"/></div>'+
+  '<div class="fg"><label class="fl">Trip Code *</label><input class="fi" id="fCode" placeholder="e.g. venice2025"/></div></div>'+
+  '<div class="fr"><div class="fg"><label class="fl">Destination(s)</label><input class="fi" id="fDest" placeholder="e.g. Venice, Italy"/></div>'+
+  '<div class="fg"><label class="fl">Travel Dates</label><input class="fi" id="fDates" placeholder="e.g. June 10-17, 2025"/></div></div>'+
+  '<div class="fr"><div class="fg"><label class="fl">Status</label>'+
+  '<select class="fsel" id="fStatus"><option value="draft">Draft</option><option value="pending">Pending</option><option value="active">Active</option><option value="completed">Completed</option><option value="archived">Archived</option></select></div>'+
+  '<div class="fg"><label class="fl">Assigned PM</label><input class="fi" id="fPM" placeholder="e.g. Patricia"/></div></div>'+
+  '<div class="fr"><div class="fg"><label class="fl">Hero Image</label>'+
+  '<div class="uz"><input type="file" accept="image/*" id="heroInput"/><p>Click or drag to upload</p></div><div id="heroPrev"></div></div>'+
+  '<div class="fg"><label class="fl">Client Name</label><input class="fi" id="fClient" placeholder="e.g. Faena Rose" style="margin-bottom:16px"/>'+
+  '<label class="fl">Client Logo</label><div class="uz"><input type="file" accept="image/*" id="logoInput"/><p>Click or drag to upload</p></div><div id="logoPrev"></div></div></div>'+
+  '<div class="fg"><label class="fl">Welcome Message</label><textarea class="fta" id="fWelcome" placeholder="A short welcome note..."></textarea></div>'+
+  '<div class="fg"><label class="fl">Coordinator WhatsApp</label><input class="fi" id="fPhone" placeholder="+1 305 000 0000"/></div>'+
+  '<div class="fg"><label class="fl">Client Brand Color</label>'+
+  '<div style="display:flex;align-items:center;gap:12px;margin-top:4px">'+
+  '<input type="color" id="fBrandColor" value="#5B2D8E" style="width:44px;height:36px;border:1px solid var(--b);cursor:pointer;padding:2px;background:transparent"/>'+
+  '<span style="font-size:11px;color:var(--gl)">Replaces purple on client page. Default is Liaisons purple.</span>'+
+  '</div></div>'+
+  '<div style="border-top:1px solid var(--b);margin:22px 0 18px"></div>'+
+  '<p style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);margin-bottom:16px">Hero Box Style & Brand Color</p>'+
+  '<div class="fr">'+
+  '<div class="fg"><label class="fl">Box Style</label>'+
+  '<select class="fsel" id="fBoxStyle">'+
+  '<option value="frosted-white">Frosted White</option>'+
+  '<option value="frosted-dark">Frosted Dark</option>'+
+  '<option value="none">No Box</option>'+
+  '</select></div>'+
+  '<div class="fg"><label class="fl">Box Opacity</label>'+
+  '<select class="fsel" id="fBoxOpacity">'+
+  '<option value="0.10">Very subtle (10%)</option>'+
+  '<option value="0.15" selected>Light (15%)</option>'+
+  '<option value="0.25">Medium (25%)</option>'+
+  '<option value="0.40">Strong (40%)</option>'+
+  '</select></div>'+
+  '</div>'+
+  '</div>'+
+  '<div class="tp" id="tItinerary"><div id="daysC"></div><button class="addbtn" id="addDayBtn">+ Add Day</button></div>'+
+  '<div class="tp" id="tPacking"><p style="font-size:11px;color:var(--gl);margin-bottom:12px">Drag to reorder</p><ul class="pl" id="packList"></ul><button class="addbtn" id="addPackBtn">+ Add Item</button></div>'+
+  '<div class="tp" id="tInfo"><div id="infoC"></div><button class="addbtn" id="addInfoBtn">+ Add Section</button></div>'+
+  '<div class="tp" id="tDocs"><p style="font-size:12px;color:var(--gray);margin-bottom:16px">Upload PDFs or add links.</p><div id="docsC"></div>'+
+  '<div style="display:flex;gap:7px;margin-top:7px"><button class="addbtn" id="addDocUpBtn" style="flex:1">+ Upload PDF</button><button class="addbtn" id="addDocLinkBtn" style="flex:1">+ Add Link</button></div></div>'+
+  '<div class="tp" id="tCity"><div id="cityC"></div><button class="addbtn" id="addCityBtn">+ Add City</button></div>'+
+
+  '</div>'+
+  '<div class="mf"><div style="display:flex;gap:8px"><button class="bg" id="edCancelBtn">Cancel</button><button class="bd" id="edDeleteBtn" style="display:none">Delete Trip</button></div>'+
+  '<div style="display:flex;gap:8px;align-items:center"><span id="saveStatus" style="font-size:11px;color:var(--gl);font-style:italic"></span>'+
+  '<button class="bp" id="saveTripBtn" style="width:auto;padding:12px 32px">Save Trip</button></div></div>'+
+  '</div></div>';
+}
+
+function getTravelerHTML(){
+  return '<div id="sTraveler" style="display:none;background:#fff;min-height:100vh;position:fixed;inset:0;overflow-y:auto;z-index:500">'+
+  '<div class="tvh"><button class="tvback" id="tvBackBtn">&#8592; Back</button>'+
+  '<img class="tvhbg" id="tvBg" src="" alt="" style="display:none"/>'+
+  '<div class="tvhdark"></div>'+
+  '<div class="tvhov">'+
+  '<div class="tvclientlogo" id="tvClientLogo"></div>'+
+  '<h1 class="tvtitle" id="tvTitle"></h1>'+
+  '<p class="tvmeta" id="tvMeta"></p>'+
+  '<div class="tvltlogo"><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:12px;width:auto">'+
+  '<text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="white">LIAISONS</text>'+
+  '<text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="rgba(255,255,255,.8)">TRAVEL</text>'+
+  '</svg></div></div></div>'+
+  '<nav class="tvnav" id="tvNav"></nav>'+
+  '<div id="tvSecs"></div>'+
+  '<footer class="tvft">'+
+  '<svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:14px;width:auto;display:block;margin:0 auto 11px">'+
+  '<text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>'+
+  '<text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#808080">TRAVEL</text></svg>'+
+  '<p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0;margin-bottom:13px">ART - TRAVEL - CULTURE - LIFESTYLE</p>'+
+  '<div class="tvftl"><a href="https://www.liaisonstravel.com" target="_blank">liaisonstravel.com</a><span style="color:var(--b)">-</span><a href="https://www.instagram.com/liaisonstravel/" target="_blank">@liaisonstravel</a></div>'+
+  '</footer></div>';
+}
+
+function getPreviewHTML(){
+  return '<div class="pvo" id="prevOverlay">'+
+  '<div class="pvo-inner">'+
+  '<button class="pvcl" id="closeMobileBtn">&times; Close</button>'+
+  '<div class="pshell"><div class="pscreen"><iframe id="prevFrame" sandbox="allow-scripts allow-same-origin"></iframe></div></div>'+
+  '</div></div>'+
+  '<div id="deskOverlay">'+
+  '<div style="background:#fff;border-bottom:1px solid #E0E0E0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'+
+  '<div style="background:#F5F5F5;border:1px solid #E0E0E0;padding:4px 16px;font-size:11px;color:#808080;min-width:300px;text-align:center" id="deskUrlBar"></div>'+
+  '<button id="closeDeskBtn" style="background:none;border:1px solid #E0E0E0;padding:6px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:#808080">&times; Close</button></div>'+
+  '<iframe id="deskFrame" sandbox="allow-scripts allow-same-origin allow-popups" style="flex:1;border:none;width:100%"></iframe></div>'+
+  '<div class="instb" id="instBanner"><p style="font-size:11px">Add LIAISONS TRAVEL to your home screen</p>'+
+  '<div class="instbtns"><button id="instNoBtn">Not now</button><button class="yes" id="instYesBtn">Add</button></div></div>';
+}
+
+// SHAREPOINT
+var GRAPH_BASE='https://graph.microsoft.com/v1.0';
+// Use hostname:path format required by Graph API
+var LIST_URL=GRAPH_BASE+'/sites/liaisonscorp.sharepoint.com:/sites/LiaisonsTravelApp:/lists/'+SP_LIST_ID;
+
+function spGet(url){
+  return getToken().then(function(token){
+    return fetch(url,{headers:{Authorization:'Bearer '+token}});
+  }).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  });
+}
+
+function spPost(url,body){
+  return getToken().then(function(token){
+    return fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('POST '+r.status+': '+t);});
+    return r.json();
+  });
+}
+
+function spPatch(url,body){
+  return getToken().then(function(token){
+    return fetch(url,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','If-Match':'*'},body:JSON.stringify(body)});
+  }).then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error('PATCH '+r.status+': '+t);});
+    return r;
+  });
+}
+
+function spDel(url){
+  return getToken().then(function(token){
+    return fetch(url,{method:'DELETE',headers:{Authorization:'Bearer '+token,'If-Match':'*'}});
+  });
+}
+
+function loadTrips(){
+  setSyncStatus('Loading...');
+  // FIX 1/2: Fetch all items, each item = one trip (TripData contains entire trip as JSON)
+  var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
+  spGet(url).then(function(data){
+    trips={};
+    var items=data.value||[];
+    for(var i=0;i<items.length;i++){
+      var item=items[i];
+      var f=item.fields;
+      if(!f)continue;
+      var tripData={};
+      try{tripData=JSON.parse(f.TripData||'{}');}catch(e){console.error('JSON parse error',e);continue;}
+      // All data lives in TripData JSON
+      var key=tripData.code||item.id;
+      tripData._spId=item.id;
+      trips[key]=tripData;
+    }
+    setSyncStatus('Synced '+new Date().toLocaleTimeString());
+    renderDash();
+  }).catch(function(e){
+    setSyncStatus('Sync failed: '+e.message);
+    console.error('loadTrips error',e);
+    renderDash();
+  });
+}
+
+// FIX 1/2: Save entire trip as ONE SharePoint list item
+// TripData field holds full JSON. Strip base64 images from SharePoint fields to stay under 256KB limit.
+function spSaveTrip(trip){
+  // Build a lean copy for SharePoint storage - images stored inline in TripData but we keep field columns small
+  var tripJSON=JSON.stringify(trip);
+  // SharePoint text fields have a ~255 char limit for indexed columns but unlimited for multiline text (TripData must be Multiline)
+  var fields={
+    Title:trip.name||'Untitled',
+    TripCode:trip.code||'',
+    TripData:tripJSON
+  };
+  if(trip._spId){
+    // UPDATE existing item
+    return spPatch(LIST_URL+'/items/'+trip._spId,{fields:fields});
+  } else {
+    // CREATE new item - only ONE item per trip
+    return spPost(LIST_URL+'/items',{fields:fields}).then(function(d){
+      if(d&&d.id){trip._spId=d.id;}
+      return d;
+    });
+  }
+}
+
+function spDelTrip(trip){if(!trip._spId)return Promise.resolve();return spDel(LIST_URL+'/items/'+trip._spId);}
+function setSyncStatus(msg){var el=document.getElementById('syncStatus');if(el)el.textContent=msg;}
+function setSaveStatus(msg){var el=document.getElementById('saveStatus');if(el)el.textContent=msg;}
+
+// DASHBOARD
+function renderDash(){
+  var g=document.getElementById('tripsGrid');if(!g)return;g.innerHTML='';
+  var keys=Object.keys(trips);
+  var filtered=[];
+  for(var i=0;i<keys.length;i++){
+    var t=trips[keys[i]];
+    if(currentFilter==='all'||t.status===currentFilter)filtered.push(keys[i]);
+  }
+  if(!filtered.length){
+    var empty=document.createElement('div');
+    empty.style.cssText='grid-column:1/-1;padding:40px;text-align:center;color:var(--gl);font-size:12px;letter-spacing:.1em;text-transform:uppercase';
+    empty.textContent=currentFilter==='all'?'No trips yet. Create your first trip.':'No '+currentFilter+' trips.';
+    g.appendChild(empty);
+  }
+  for(var i=0;i<filtered.length;i++)g.appendChild(makeTripCard(filtered[i],trips[filtered[i]]));
+  var nc=document.createElement('div');nc.className='ntc';
+  nc.innerHTML='<div class="plus">+</div><span>New Trip</span>';
+  nc.addEventListener('click',function(){openEditor(null);});
+  g.appendChild(nc);
+}
+
+function makeTripCard(id,t){
+  var c=document.createElement('div');c.className='tc';
+  c.innerHTML='<div class="tch">'+(t.heroImg?'<img src="'+t.heroImg+'" alt=""/>':'')+
+    '<div class="tco"><h3>'+(t.name||'Untitled')+'</h3><p>'+(t.destinations||'')+'</p></div></div>'+
+    '<div class="tcb"><div class="tmeta">'+
+    '<span class="status '+(t.status||'draft')+'">'+(t.status||'draft')+'</span>'+
+    (t.dates?'<span class="badge">'+t.dates+'</span>':'')+
+    (t.clientName?'<span class="badge">'+t.clientName+'</span>':'')+
+    (t.assignedPM?'<span class="badge">'+t.assignedPM+'</span>':'')+
+    '</div><div style="font-size:10px;color:var(--gl);letter-spacing:.08em;margin-bottom:8px">Code: '+(t.code||'-')+'</div>'+
+    '<div class="tact">'+
+    '<button class="bs" data-action="edit" data-id="'+id+'">Edit</button>'+
+    '<button class="bg" data-action="mobile" data-id="'+id+'">Mobile</button>'+
+    '<button class="bg" data-action="desktop" data-id="'+id+'">Desktop</button>'+
+    '<button class="bg" data-action="publish" data-id="'+id+'" style="background:var(--purple);color:#fff;border-color:var(--purple)">Publish</button>'+
+    '</div></div>';
+  return c;
+}
+
+document.addEventListener('click',function(e){
+  var btn=e.target.closest('[data-action]');
+  if(!btn)return;
+  var a=btn.getAttribute('data-action'),id=btn.getAttribute('data-id');
+  if(a==='edit'){openEditor(id);}
+  else if(a==='mobile'){
+    var trip=trips[id];
+    if(trip){
+      document.getElementById('prevFrame').srcdoc=buildTravelerHTML(trip);
+      document.getElementById('prevOverlay').classList.add('open');
+    }
+  }
+  else if(a==='desktop'){
+    var trip=trips[id];
+    if(trip){
+      document.getElementById('deskUrlBar').textContent='liaisonstravel.com/trip/'+(trip.code||'');
+      document.getElementById('deskFrame').srcdoc=buildTravelerHTML(trip);
+      document.getElementById('deskOverlay').classList.add('open');
+    }
+  }
+  else if(a==='publish'){publishTrip(id);}
+
+});
+
+document.addEventListener('click',function(e){
+  var fb=e.target.closest('.fbtn');
+  if(!fb||!document.getElementById('filterBar'))return;
+  document.querySelectorAll('.fbtn').forEach(function(b){b.classList.remove('active');});
+  fb.classList.add('active');
+  currentFilter=fb.getAttribute('data-filter');
+  renderDash();
+});
+
+// EDITOR
+function openEditor(id){
+  curId=id;
+  var t=id?trips[id]:{};
+  document.getElementById('edTitle').textContent=id?'Edit Trip':'New Trip';
+  document.getElementById('fName').value=t.name||'';
+  document.getElementById('fCode').value=t.code||'';
+  document.getElementById('fDest').value=t.destinations||'';
+  document.getElementById('fDates').value=t.dates||'';
+  document.getElementById('fStatus').value=t.status||'draft';
+  document.getElementById('fPM').value=t.assignedPM||'';
+  document.getElementById('fClient').value=t.clientName||'';
+  document.getElementById('fWelcome').value=t.welcome||'';
+  document.getElementById('fPhone').value=t.contactPhone||'';
+  document.getElementById('edDeleteBtn').style.display=id?'block':'none';
+  eHero=t.heroImg||null;
+  eLogo=t.clientLogo||null;
+  var bsEl=document.getElementById('fBoxStyle');if(bsEl)bsEl.value=t.boxStyle||'frosted-white';
+  var boEl=document.getElementById('fBoxOpacity');if(boEl)boEl.value=t.boxOpacity||'0.15';
+  var bcEl=document.getElementById('fBrandColor');if(bcEl)bcEl.value=t.brandColor||'#5B2D8E';
+  showImgPrev('heroPrev',eHero);
+  showImgPrev('logoPrev',eLogo);
+  eDays=t.days?JSON.parse(JSON.stringify(t.days)):[];
+  ePack=t.packing?JSON.parse(JSON.stringify(t.packing)):[];
+  eInfo=t.info?JSON.parse(JSON.stringify(t.info)):[];
+  eDocs=t.docs?JSON.parse(JSON.stringify(t.docs)):[];
+  eCity=t.cityGuide?JSON.parse(JSON.stringify(t.cityGuide)):[];
+  renderDays();renderPack();renderInfo();renderDocs();renderCity();
+  setSaveStatus('');
+  switchTab('tSetup');
+  hasUnsavedChanges=false;
+  clearTimeout(autoSaveTimer);
+  document.getElementById('editorModal').classList.add('open');
+}
+
+function closeEditor(){
+  if(hasUnsavedChanges){
+    if(!confirm('You have unsaved changes. Close anyway?'))return;
+  }
+  clearTimeout(autoSaveTimer);
+  hasUnsavedChanges=false;
+  document.getElementById('editorModal').classList.remove('open');
+}
+
+var autoSaveTimer=null;
+var hasUnsavedChanges=false;
+
+function markDirty(){
+  hasUnsavedChanges=true;
+  setSaveStatus('Unsaved changes...');
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer=setTimeout(function(){
+    var name=document.getElementById('fName').value.trim();
+    var code=document.getElementById('fCode').value.trim();
+    if(name&&code)saveTrip(true);
+  },5000);
+}
+
+function switchTab(id){
+  document.querySelectorAll('.tp').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.ftab').forEach(function(t){t.classList.remove('active');if(t.getAttribute('data-tab')===id)t.classList.add('active');});
+  var panel=document.getElementById(id);
+  if(panel)panel.classList.add('active');
+}
+
+function updateShare(code){
+  document.getElementById('shareLink').value=REDIRECT_URI+'#trip/'+(code||'');
+  document.getElementById('shareCode').textContent=code||'(save trip first)';
+}
+
+// auto=true means called by autosave timer (no alert on missing fields, no UI disruption)
+function saveTrip(auto){
+  var name=document.getElementById('fName').value.trim();
+  var code=document.getElementById('fCode').value.trim().toLowerCase().replace(/\s+/g,'-');
+  if(!name||!code){if(!auto)alert('Trip Name and Trip Code are required.');return;}
+  // FIX 5: Check for duplicate trip code (only on new trips)
+  if(!curId){
+    var keys=Object.keys(trips);
+    for(var i=0;i<keys.length;i++){
+      if(trips[keys[i]].code===code){
+        if(!confirm('A trip with code "'+code+'" already exists. Overwrite it?'))return;
+        break;
+      }
+    }
+  }
+
+  // Build complete trip object
+  var trip={
+    name:name,
+    code:code,
+    destinations:document.getElementById('fDest').value,
+    dates:document.getElementById('fDates').value,
+    status:document.getElementById('fStatus').value,
+    assignedPM:document.getElementById('fPM').value,
+    heroImg:eHero,
+    boxStyle:document.getElementById('fBoxStyle').value,
+    boxOpacity:document.getElementById('fBoxOpacity').value,
+    brandColor:document.getElementById('fBrandColor').value||'#5B2D8E',
+    clientName:document.getElementById('fClient').value,
+    clientLogo:eLogo,
+    welcome:document.getElementById('fWelcome').value,
+    contactPhone:document.getElementById('fPhone').value,
+    days:eDays,
+    packing:ePack,
+    info:eInfo,
+    docs:eDocs,
+    cityGuide:eCity
+  };
+
+  // Preserve SP item ID if editing existing trip
+  var existingKey=curId;
+  if(existingKey&&trips[existingKey]&&trips[existingKey]._spId){
+    trip._spId=trips[existingKey]._spId;
+  }
+
+  // Use trip code as local key
+  var localKey=code;
+  // If we renamed the code, remove old key
+  if(existingKey&&existingKey!==localKey&&trips[existingKey]){
+    delete trips[existingKey];
+  }
+  trips[localKey]=trip;
+  curId=localKey;
+
+  // FIX 2: Warn if TripData is too large (SharePoint multiline limit ~1MB safe threshold)
+  var tripJSON=JSON.stringify(trip);
+  if(tripJSON.length>800000){
+    setSaveStatus('Warning: trip data is very large ('+Math.round(tripJSON.length/1024)+'KB). Consider removing some images.');
+  }
+
+  setSaveStatus('Saving...');
+  document.getElementById('saveTripBtn').disabled=true;
+
+  spSaveTrip(trip).then(function(){
+    hasUnsavedChanges=false;
+    clearTimeout(autoSaveTimer);
+    setSaveStatus(auto?'Auto-saved ✓':'Saved!');
+    setSyncStatus('Synced '+new Date().toLocaleTimeString());
+    setTimeout(function(){setSaveStatus('');},3000);
+    document.getElementById('saveTripBtn').disabled=false;
+    renderDash();
+    updateShare(code);
+  }).catch(function(e){
+    setSaveStatus('Save failed: '+e.message);
+    document.getElementById('saveTripBtn').disabled=false;
+    console.error('saveTrip error',e);
+  });
+}
+
+function deleteTrip(){
+  if(!curId||!confirm('Delete this trip? This cannot be undone.'))return;
+  var trip=trips[curId];
+  delete trips[curId];
+  closeEditor();
+  renderDash();
+  if(trip)spDelTrip(trip).catch(function(e){console.error(e);});
+}
+
+function showImgPrev(cid,data){
+  var c=document.getElementById(cid);
+  if(!c)return;
+  c.innerHTML=data?'<div class="uprev"><img src="'+data+'" alt=""/><button class="uclear" data-clear="'+cid+'">Remove</button></div>':'';
+}
+
+function handleImgFile(file,type){
+  var r=new FileReader();
+  r.onload=function(ev){
+    if(type==='hero'){eHero=ev.target.result;showImgPrev('heroPrev',eHero);}
+    else{eLogo=ev.target.result;showImgPrev('logoPrev',eLogo);}
+  };
+  r.readAsDataURL(file);
+}
+
+document.addEventListener('click',function(e){
+  var b=e.target.closest('[data-clear]');
+  if(b){
+    var cid=b.getAttribute('data-clear');
+    if(cid==='heroPrev')eHero=null;
+    else eLogo=null;
+    showImgPrev(cid,null);
+  }
+});
+
+function renderDays(){
+  var c=document.getElementById('daysC');if(!c)return;c.innerHTML='';
+  for(var di=0;di<eDays.length;di++){
+    (function(di){
+      var d=eDays[di];
+      var el=document.createElement('div');el.className='di';
+      el.innerHTML='<div class="dih" data-toggle="'+di+'"><h4>Day '+(di+1)+' - '+(d.title||'Untitled')+'</h4><button class="rb" data-rmday="'+di+'">&times;</button></div>'+
+        '<div class="dib" id="db'+di+'"><div class="fr">'+
+        '<div class="fg"><label class="fl">Title</label><input class="fi" value="'+esc(d.title||'')+'" data-df="'+di+'-title"/></div>'+
+        '<div class="fg"><label class="fl">Date</label><input class="fi" value="'+esc(d.date||'')+'" data-df="'+di+'-date"/></div></div>'+
+        '<label class="fl">Activities</label><div id="ac'+di+'"></div>'+
+        '<button class="addbtn" data-addact="'+di+'">+ Add Activity</button></div>';
+      c.appendChild(el);
+      renderActs(di);
+    })(di);
+  }
+}
+
+document.addEventListener('click',function(e){
+  var tog=e.target.closest('[data-toggle]');
+  if(tog){var db=document.getElementById('db'+tog.getAttribute('data-toggle'));if(db)db.classList.toggle('open');return;}
+  var rmd=e.target.closest('[data-rmday]');
+  if(rmd){eDays.splice(parseInt(rmd.getAttribute('data-rmday')),1);renderDays();return;}
+  var aa=e.target.closest('[data-addact]');
+  if(aa){addAct(parseInt(aa.getAttribute('data-addact')));return;}
+  var rma=e.target.closest('[data-rmact]');
+  if(rma){var p=rma.getAttribute('data-rmact').split('-');eDays[p[0]].activities.splice(p[1],1);renderActs(parseInt(p[0]));return;}
+  var rmpack=e.target.closest('[data-rmpack]');
+  if(rmpack){ePack.splice(parseInt(rmpack.getAttribute('data-rmpack')),1);renderPack();return;}
+  var rminfo=e.target.closest('[data-rminfo]');
+  if(rminfo){eInfo.splice(parseInt(rminfo.getAttribute('data-rminfo')),1);renderInfo();return;}
+  var rmdoc=e.target.closest('[data-rmdoc]');
+  if(rmdoc){eDocs.splice(parseInt(rmdoc.getAttribute('data-rmdoc')),1);renderDocs();return;}
+  var rmcity=e.target.closest('[data-rmcity]');
+  if(rmcity){eCity.splice(parseInt(rmcity.getAttribute('data-rmcity')),1);renderCity();return;}
+  var rmap=e.target.closest('[data-rmap]');
+  if(rmap){var p=rmap.getAttribute('data-rmap').split('-');eDays[p[0]].activities[p[1]].photo=null;renderActs(parseInt(p[0]));return;}
+  var rmcp=e.target.closest('[data-rmcp]');
+  if(rmcp){eCity[parseInt(rmcp.getAttribute('data-rmcp'))].imgData=null;renderCity();return;}
+});
+
+document.addEventListener('change',function(e){
+  var df=e.target.getAttribute('data-df');
+  if(df){var p=df.split('-');eDays[p[0]][p[1]]=e.target.value;renderDays();markDirty();return;}
+  var af=e.target.getAttribute('data-af');
+  if(af){var p=af.split('-');eDays[p[0]].activities[p[1]][p[2]]=e.target.value;markDirty();return;}
+  var pf=e.target.getAttribute('data-pf');
+  if(pf){var p=pf.split('-');ePack[p[0]][p[1]]=e.target.value;markDirty();return;}
+  var inf=e.target.getAttribute('data-inf');
+  if(inf){var p=inf.split('-');eInfo[p[0]][p[1]]=e.target.value;markDirty();return;}
+  var dcf=e.target.getAttribute('data-dcf');
+  if(dcf){var p=dcf.split('-');eDocs[p[0]][p[1]]=e.target.value;markDirty();return;}
+  var cf=e.target.getAttribute('data-cf');
+  if(cf){var p=cf.split('-');eCity[p[0]][p[1]]=e.target.value;markDirty();return;}
+  if(e.target.id==='heroInput'&&e.target.files[0]){handleImgFile(e.target.files[0],'hero');markDirty();}
+  if(e.target.id==='logoInput'&&e.target.files[0]){handleImgFile(e.target.files[0],'logo');markDirty();}
+  var ap=e.target.getAttribute('data-ap');
+  if(ap&&e.target.files[0]){
+    var p=ap.split('-');var f=e.target.files[0];
+    var r=new FileReader();
+    r.onload=(function(di,ai){return function(ev){eDays[di].activities[ai].photo=ev.target.result;renderActs(di);};})(parseInt(p[0]),parseInt(p[1]));
+    r.readAsDataURL(f);
+  }
+  var cp=e.target.getAttribute('data-cp');
+  if(cp&&e.target.files[0]){
+    var idx=parseInt(cp);var f=e.target.files[0];
+    var r=new FileReader();
+    r.onload=(function(i){return function(ev){eCity[i].imgData=ev.target.result;renderCity();};})(idx);
+    r.readAsDataURL(f);
+  }
+});
+
+function addAct(di){
+  if(!eDays[di].activities)eDays[di].activities=[];
+  eDays[di].activities.push({time:'',title:'',desc:'',mapQuery:'',photo:null});
+  renderActs(di);
+}
+
+function renderActs(di){
+  var c=document.getElementById('ac'+di);if(!c)return;c.innerHTML='';
+  var acts=eDays[di].activities||[];
+  for(var ai=0;ai<acts.length;ai++){
+    (function(ai){
+      var a=acts[ai];
+      var el=document.createElement('div');el.className='ab';
+      el.innerHTML='<div class="abh"><h5>Activity '+(ai+1)+'</h5><button class="rb" data-rmact="'+di+'-'+ai+'">&times;</button></div>'+
+        '<div class="ag"><div><label class="fl">Time</label><input class="fi" value="'+esc(a.time||'')+'" placeholder="09:00" data-af="'+di+'-'+ai+'-time"/></div>'+
+        '<div><label class="fl">Name</label><input class="fi" value="'+esc(a.title||'')+'" data-af="'+di+'-'+ai+'-title"/></div></div>'+
+        '<div class="fg"><label class="fl">Description</label><input class="fi" value="'+esc(a.desc||'')+'" data-af="'+di+'-'+ai+'-desc"/></div>'+
+        '<div class="abot">'+
+        '<div class="fg"><label class="fl">Maps Location</label><input class="fi" value="'+esc(a.mapQuery||'')+'" placeholder="e.g. Senso-ji Temple Tokyo" data-af="'+di+'-'+ai+'-mapQuery"/></div>'+
+        '<div class="fg"><label class="fl">Photo</label>'+
+        '<div class="uz" style="padding:7px"><input type="file" accept="image/*" data-ap="'+di+'-'+ai+'"/><p style="font-size:9px">'+(a.photo?'Change':'Upload optional')+'</p></div>'+
+        (a.photo?'<div class="uprev"><img src="'+a.photo+'" alt=""/><button class="uclear" data-rmap="'+di+'-'+ai+'">Remove</button></div>':'')+
+        '</div></div>';
+      c.appendChild(el);
+    })(ai);
+  }
+}
+
+function renderPack(){
+  var list=document.getElementById('packList');if(!list)return;list.innerHTML='';
+  for(var i=0;i<ePack.length;i++){
+    (function(i){
+      var li=document.createElement('li');li.className='pei';li.draggable=true;
+      li.innerHTML='<span class="dh2">&#8597;</span>'+
+        '<input class="pm" placeholder="e.g. Passport" value="'+esc(ePack[i].label||'')+'" data-pf="'+i+'-label"/>'+
+        '<input class="pcat" placeholder="Category" value="'+esc(ePack[i].category||'')+'" data-pf="'+i+'-category"/>'+
+        '<button class="rb" data-rmpack="'+i+'">&times;</button>';
+      li.addEventListener('dragstart',function(e){dragSrc=i;li.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+      li.addEventListener('dragend',function(){li.classList.remove('dragging');});
+      li.addEventListener('dragover',function(e){e.preventDefault();li.classList.add('drag-over');});
+      li.addEventListener('dragleave',function(){li.classList.remove('drag-over');});
+      li.addEventListener('drop',function(e){e.preventDefault();li.classList.remove('drag-over');if(dragSrc===null||dragSrc===i)return;var m=ePack.splice(dragSrc,1)[0];ePack.splice(i,0,m);dragSrc=null;renderPack();markDirty();});
+      list.appendChild(li);
+    })(i);
+  }
+}
+
+function renderInfo(){
+  var c=document.getElementById('infoC');if(!c)return;c.innerHTML='';
+  for(var i=0;i<eInfo.length;i++){
+    (function(i){
+      var el=document.createElement('div');el.className='ci';
+      el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px">'+
+        '<input class="fi" value="'+esc(eInfo[i].title||'')+'" placeholder="Section title" style="flex:1" data-inf="'+i+'-title"/>'+
+        '<button class="rb" data-rminfo="'+i+'">&times;</button></div>'+
+        '<textarea class="fta" data-inf="'+i+'-content">'+esc(eInfo[i].content||'')+'</textarea>';
+      c.appendChild(el);
+    })(i);
+  }
+}
+
+function renderDocs(){
+  var c=document.getElementById('docsC');if(!c)return;c.innerHTML='';
+  for(var i=0;i<eDocs.length;i++){
+    (function(i){
+      var el=document.createElement('div');el.className='dei';
+      if(eDocs[i].type==='pdf'){
+        el.innerHTML='<span class="dtb pdf">PDF</span><span style="flex:1;font-size:12px">'+esc(eDocs[i].name||'')+'</span>'+
+          '<input class="fi" style="width:150px;flex:none" value="'+esc(eDocs[i].label||'')+'" data-dcf="'+i+'-label"/>'+
+          '<button class="rb" data-rmdoc="'+i+'">&times;</button>';
+      } else {
+        el.innerHTML='<span class="dtb link">LINK</span>'+
+          '<input class="fi" style="flex:1" value="'+esc(eDocs[i].label||'')+'" placeholder="Label" data-dcf="'+i+'-label"/>'+
+          '<input class="fi" style="width:190px;flex:none" value="'+esc(eDocs[i].url||'')+'" placeholder="https://..." data-dcf="'+i+'-url"/>'+
+          '<button class="rb" data-rmdoc="'+i+'">&times;</button>';
+      }
+      c.appendChild(el);
+    })(i);
+  }
+}
+
+function addDocUpload(){
+  var inp=document.createElement('input');inp.type='file';inp.accept='application/pdf';
+  inp.onchange=function(e){
+    var f=e.target.files[0];if(!f)return;
+    var r=new FileReader();
+    r.onload=function(ev){eDocs.push({type:'pdf',name:f.name,label:f.name.replace('.pdf',''),data:ev.target.result});renderDocs();};
+    r.readAsDataURL(f);
+  };
+  inp.click();
+}
+
+function renderCity(){
+  var c=document.getElementById('cityC');if(!c)return;c.innerHTML='';
+  for(var i=0;i<eCity.length;i++){
+    (function(i){
+      var el=document.createElement('div');el.className='ci';
+      el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px">'+
+        '<input class="fi" value="'+esc(eCity[i].name||'')+'" placeholder="City name" style="flex:1" data-cf="'+i+'-name"/>'+
+        '<button class="rb" data-rmcity="'+i+'">&times;</button></div>'+
+        '<div class="fg"><label class="fl">City Photo</label>'+
+        '<div class="uz" style="padding:7px"><input type="file" accept="image/*" data-cp="'+i+'"/><p style="font-size:9px">'+(eCity[i].imgData?'Change':'Upload optional')+'</p></div>'+
+        (eCity[i].imgData?'<div class="uprev"><img src="'+eCity[i].imgData+'" alt=""/><button class="uclear" data-rmcp="'+i+'">Remove</button></div>':'')+
+        '</div><label class="fl">Tips (one per line)</label>'+
+        '<textarea class="fta" data-cf="'+i+'-tips">'+esc(eCity[i].tips||'')+'</textarea>';
+      c.appendChild(el);
+    })(i);
+  }
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+
+// BUILD TRAVELER HTML (the shareable trip page)
+function buildTravelerHTML(trip){
+  var tabs=[],sections=[];
+  function addSec(label,html){
+    var idx=tabs.length;
+    tabs.push(label);
+    sections.push('<div class="sec'+(idx===0?' active':'')+'" id="s'+idx+'">'+html+'</div>');
+  }
+
+  if(trip.welcome)addSec('Welcome','<p class="sttl">Welcome</p><p style="font-size:15px;line-height:1.9;max-width:600px;white-space:pre-wrap">'+trip.welcome+'</p>');
+
+  if(trip.days&&trip.days.length){
+    var pills='';
+    if(trip.days.length>1){
+      pills='<div class="dpills">';
+      for(var di=0;di<trip.days.length;di++){pills+='<div class="dpill'+(di===0?' active':'')+'" onclick="goDay('+di+',this)">Day '+(di+1)+'</div>';}
+      pills+='</div>';
+    }
+    var body='<p class="sttl">Day by Day Itinerary</p>'+pills;
+    for(var di=0;di<trip.days.length;di++){
+      var d=trip.days[di];
+      body+='<div class="dayb" id="day'+di+'"><div class="dayhd"><span class="dnum">'+String(di+1)+'</span><div><div class="dtit">'+(d.title||'Day '+(di+1))+'</div><div class="ddt">'+(d.date||'')+'</div></div></div>';
+      var acts=d.activities||[];
+      for(var ai=0;ai<acts.length;ai++){
+        var a=acts[ai];
+        var mid='m'+di+'_'+ai;
+        // FIX 3: Map uses data-src, toggled on click, query properly encoded
+        body+='<div class="ac">'+
+          (a.photo?'<img src="'+a.photo+'" style="width:100%;height:200px;object-fit:cover;display:block" alt=""/>':'')+
+          '<div class="acb">'+
+          (a.time?'<div class="atm">'+a.time+'</div>':'')+
+          '<div class="atl">'+(a.title||'')+'</div>'+
+          (a.desc?'<div class="ads">'+a.desc+'</div>':'')+
+          (a.mapQuery?'<a class="mbt" href="'+(a.mapQuery.indexOf("http")===0?a.mapQuery:"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(a.mapQuery))+'" target="_blank">&#x1F4CD; View on Google Maps</a>':'')+
+          '</div></div>';
+      }
+      body+='</div>';
+    }
+    addSec('Itinerary',body);
+  }
+
+  // Packing
+  var packBody='<p class="sttl">Packing Checklist</p>';
+  if(!trip.packing||!trip.packing.length){
+    packBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';
+  } else {
+    var bc={};
+    for(var i=0;i<trip.packing.length;i++){var cat=trip.packing[i].category||'General';if(!bc[cat])bc[cat]=[];bc[cat].push(trip.packing[i].label);}
+    var cats=Object.keys(bc);
+    for(var ci=0;ci<cats.length;ci++){
+      packBody+='<div style="margin-bottom:22px"><p style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#808080;margin-bottom:9px">'+cats[ci]+'</p>';
+      for(var ii=0;ii<bc[cats[ci]].length;ii++){packBody+='<div class="pi" onclick="this.classList.toggle(\'chk\')"><div class="pk"></div><span class="pkl">'+bc[cats[ci]][ii]+'</span></div>';}
+      packBody+='</div>';
+    }
+  }
+  addSec('Packing',packBody);
+
+  // Info
+  var infoBody='<p class="sttl">General Information</p>';
+  if(!trip.info||!trip.info.length){infoBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
+  else{for(var i=0;i<trip.info.length;i++){infoBody+='<div class="ic"><h4>'+(trip.info[i].title||'')+'</h4><p>'+(trip.info[i].content||'')+'</p></div>';}}
+  addSec('General Info',infoBody);
+
+  // Docs
+  var docsBody='<p class="sttl">Documents</p>';
+  if(!trip.docs||!trip.docs.length){docsBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
+  else{
+    for(var i=0;i<trip.docs.length;i++){
+      var doc=trip.docs[i];
+      var href=doc.type==='pdf'?doc.data:doc.url||'#';
+      docsBody+='<a class="dc" href="'+href+'" target="_blank">'+
+        '<div class="dico">'+(doc.type==='pdf'?'PDF':'LINK')+'</div>'+
+        '<div><div style="font-size:13px;font-weight:400">'+(doc.label||doc.name||'Doc')+'</div><div style="font-size:10px;color:#B0B0B0">Tap to open</div></div>'+
+        '<span style="color:#5B2D8E;margin-left:auto">&#8594;</span></a>';
+    }
+  }
+  addSec('Documents',docsBody);
+
+  // City Guide
+  var cityBody='<p class="sttl">City Guide</p>';
+  if(!trip.cityGuide||!trip.cityGuide.length){cityBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
+  else{
+    cityBody+='<div class="cgg">';
+    for(var i=0;i<trip.cityGuide.length;i++){
+      var city=trip.cityGuide[i];
+      var tips=(city.tips||'').split('\n');
+      var th='';
+      for(var ti=0;ti<tips.length;ti++){if(tips[ti].trim())th+='<li>'+tips[ti]+'</li>';}
+      cityBody+='<div class="cgc"><div class="cgi">'+(city.imgData?'<img src="'+city.imgData+'" style="width:100%;height:100%;object-fit:cover" alt=""/>':'<span style="color:rgba(255,255,255,.5);font-size:11px">'+(city.name||'')+'</span>')+'</div><div class="cgb"><h4>'+(city.name||'')+'</h4><ul class="cgt">'+th+'</ul></div></div>';
+    }
+    cityBody+='</div>';
+  }
+  addSec('City Guide',cityBody);
+
+  // Build dynamic hero box style
+  var brandColor=trip.brandColor||'#5B2D8E';
+  var boxStyle=trip.boxStyle||'frosted-white';
+  var boxOp=parseFloat(trip.boxOpacity)||0.15;
+  var hboxBg='';
+  if(boxStyle==='none'){
+    hboxBg='background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;';
+  } else if(boxStyle==='frosted-dark'){
+    hboxBg='background:rgba(0,0,0,'+boxOp+');backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);';
+  } else {
+    hboxBg='background:rgba(255,255,255,'+boxOp+');backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);';
+  }
+
+  var navItems='';
+  for(var i=0;i<tabs.length;i++){navItems+='<div class="ni'+(i===0?' active':'')+'" onclick="goTab('+i+',this)">'+tabs[i]+'</div>';}
+
+  // Hero: client logo → destination → date → Liaisons logo
+  var clientBlock='';
+  if(trip.clientLogo){
+    clientBlock='<img src="'+trip.clientLogo+'" style="max-height:90px;max-width:220px;object-fit:contain;display:block;margin:0 auto 20px" alt=""/>';
+  } else if(trip.clientName){
+    clientBlock='<div style="color:#fff;font-size:12px;letter-spacing:.25em;text-transform:uppercase;font-weight:300;margin-bottom:18px;text-align:center;width:100%">'+trip.clientName+'</div>';
+  }
+
+  var phone=(trip.contactPhone||'').replace(/\s+/g,'');
+  var contactBtn=phone?'<a href="https://wa.me/'+phone.replace(/\+/g,'')+'" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25D366;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">&#128172; Message Liaisons Team</a>':'';
+
+  var daysJSON=JSON.stringify(trip.days||[]);
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>'+(trip.name||'My Trip')+'</title>'+
+'<style>:root{--brand:'+brandColor+'}*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#fff;color:#2D2D2D}'+
+'.hero{position:relative;height:65vh;min-height:300px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}'+
+'.hbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}'+
+'.hdk{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.32);pointer-events:none}'+
+'.hov{position:relative;z-index:2;text-align:center;padding:16px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}'+'.hbox{pointer-events:auto}'+
+'.hbox{padding:18px 32px;display:flex;flex-direction:column;align-items:center;max-width:400px;width:80%}'+
+'.htl{color:#fff;font-size:clamp(18px,4vw,42px);font-weight:100;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;width:100%;text-align:center}'+
+'.hmt{color:rgba(255,255,255,.9);font-size:11px;letter-spacing:.22em;text-transform:uppercase;margin-bottom:0;text-align:center}'+
+'.hlt{margin-top:22px;display:flex;justify-content:center;width:100%}'+
+'nav{position:sticky;top:0;background:#fff;border-bottom:1px solid #E0E0E0;display:flex;overflow-x:auto;z-index:200;scrollbar-width:none}nav::-webkit-scrollbar{display:none}'+
+'.ni{padding:14px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;white-space:nowrap;color:#B0B0B0;border-bottom:2px solid transparent;flex-shrink:0}'+
+'.ni.active{color:var(--brand);border-bottom-color:var(--brand)}'+
+'.sec{display:none;max-width:860px;margin:0 auto;padding:44px 24px 80px}.sec.active{display:block}'+
+'.sttl{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#808080;margin-bottom:28px;padding-bottom:9px;border-bottom:1px solid #E0E0E0}'+
+'.dpills{display:flex;gap:7px;overflow-x:auto;padding-bottom:13px;margin-bottom:16px;scrollbar-width:none}.dpills::-webkit-scrollbar{display:none}'+
+'.dpill{flex-shrink:0;padding:5px 14px;border:1px solid #E0E0E0;border-radius:20px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#808080;cursor:pointer;white-space:nowrap}'+
+'.dpill.active{background:var(--brand);border-color:var(--brand);color:#fff}'+
+'.dayb{margin-bottom:40px;scroll-margin-top:70px}'+
+'.dayhd{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}'+
+'.dnum{font-size:28px;font-weight:100;color:var(--brand);line-height:1}'+
+'.dtit{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:300}'+
+'.ddt{font-size:11px;color:#B0B0B0}'+
+'.ac{border:1px solid #E0E0E0;margin-bottom:12px;overflow:hidden}'+
+'.acb{padding:13px}'+
+'.atm{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);margin-bottom:2px}'+
+'.atl{font-size:14px;font-weight:400;margin-bottom:3px}'+
+'.ads{font-size:12px;color:#808080;line-height:1.6;margin-bottom:9px}'+
+/* FIX 3: Map button and iframe */
+'.mbt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);background:none;border:1px solid #c9a8e8;padding:5px 12px;font-family:inherit;margin-top:4px;border-radius:3px;display:inline-block;text-decoration:none}'+
+'.pi{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #E0E0E0;cursor:pointer}.pi:last-child{border-bottom:none}'+
+'.pk{width:17px;height:17px;border:1px solid #E0E0E0;flex-shrink:0;display:flex;align-items:center;justify-content:center}'+
+'.pi.chk .pk{background:var(--brand);border-color:var(--brand)}.pi.chk .pk::after{content:"\\2713";color:#fff;font-size:10px}'+
+'.pi.chk .pkl{color:#B0B0B0;text-decoration:line-through}.pkl{font-size:13px;font-weight:300}'+
+'.ic{border:1px solid #E0E0E0;padding:20px;margin-bottom:13px}.ic h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);margin-bottom:9px}.ic p{font-size:13px;line-height:1.7;white-space:pre-wrap}'+
+'.dc{display:flex;align-items:center;gap:13px;padding:13px 16px;border:1px solid #E0E0E0;margin-bottom:9px;text-decoration:none;color:#2D2D2D}'+
+'.dico{width:36px;height:36px;background:#F5F5F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:400}'+
+'.cgg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}'+
+'.cgc{border:1px solid #E0E0E0;overflow:hidden}.cgi{height:130px;background:linear-gradient(135deg,#5B2D8E,#3a1a5e);display:flex;align-items:center;justify-content:center;overflow:hidden}'+
+'.cgb{padding:13px}.cgb h4{font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px}'+
+'.cgt{list-style:none}.cgt li{font-size:12px;padding:4px 0;border-bottom:1px solid #E0E0E0}.cgt li:last-child{border-bottom:none}.cgt li::before{content:"- ";color:var(--brand)}'+
+'footer{text-align:center;padding:36px 24px;border-top:1px solid #E0E0E0;margin-bottom:80px}footer a{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#808080;text-decoration:none;margin:0 10px}</style>'+
+'</head><body>'+
+'<div class="hero">'+
+(trip.heroImg?'<img class="hbg" src="'+trip.heroImg+'" alt=""/>':'')+
+'<div class="hdk"></div>'+
+'<div class="hov">'+
+'<div class="hbox" style="'+hboxBg+'">'+
+clientBlock+
+(trip.destinations?'<div class="htl">'+(trip.destinations||'')+'</div>':'')+
+(trip.dates?'<div class="hmt">'+(trip.dates||'')+'</div>':'')+
+'<div class="hlt"><svg viewBox="0 0 210 20" xmlns="http://www.w3.org/2000/svg" style="height:14px;width:auto;display:block;margin:0 auto"><text x="0" y="16" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="300" font-size="16" letter-spacing="4" fill="rgba(255,255,255,.9)">LIAISONS</text><text x="108" y="16" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="300" font-size="16" letter-spacing="4" fill="rgba(255,255,255,.65)">TRAVEL</text></svg></div>'+
+'</div>'+
+'</div></div>'+
+'<nav>'+navItems+'</nav>'+
+'<div id="secs">'+sections.join('')+'</div>'+
+contactBtn+
+'<footer><img src="https://trips.liaisonstravel.com/LIAISONS_TRAVEL_LOGO-01.png" style="height:18px;width:auto;display:block;margin:0 auto 11px" alt="LIAISONS TRAVEL"/>'+
+'<p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0;margin-bottom:12px">ART - TRAVEL - CULTURE - LIFESTYLE</p>'+
+'<a href="https://www.liaisonstravel.com" target="_blank">liaisonstravel.com</a>'+
+'<a href="https://www.instagram.com/liaisonstravel/" target="_blank">@liaisonstravel</a></footer>'+
+'<script>'+
+'function goTab(idx,el){'+
+'var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++)ns[i].classList.remove("active");'+
+'var ss=document.querySelectorAll(".sec");for(var i=0;i<ss.length;i++)ss[i].classList.remove("active");'+
+'el.classList.add("active");var s=document.getElementById("s"+idx);if(s){s.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}'+
+'}'+
+'function goDay(idx,pill){'+
+'var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");'+
+'pill.classList.add("active");var b=document.getElementById("day"+idx);if(b)b.scrollIntoView({behavior:"smooth",block:"start"});'+
+'}'+
+'(function(){'+
+'var days='+daysJSON+';'+
+'if(!days.length)return;'+
+'var today=new Date();today.setHours(0,0,0,0);var idx=0;'+
+'for(var i=0;i<days.length;i++){if(!days[i].date)continue;var p=new Date(days[i].date);if(isNaN(p.getTime()))continue;p.setHours(0,0,0,0);if(p.getTime()===today.getTime()){idx=i;break;}}'+
+'setTimeout(function(){'+
+'var pill=document.querySelectorAll(".dpill")[idx];'+
+'var block=document.getElementById("day"+idx);'+
+'if(pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");}'+
+'if(block){block.style.borderLeft="3px solid #5B2D8E";block.style.paddingLeft="12px";'+
+'var badge=document.createElement("span");badge.textContent="TODAY";badge.style.cssText="display:inline-block;background:var(--brand);color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";'+
+'var te=block.querySelector(".dtit");if(te)te.appendChild(badge);'+
+'var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++){if(ns[i].textContent.trim()==="Itinerary")goTab(i,ns[i]);}'+
+'block.scrollIntoView({behavior:"smooth",block:"start"});}'+
+'},600);'+
+'})();'+
+'<\/script></body></html>';
+}
+
+function renderTV(trip){
+  var bg=document.getElementById('tvBg');
+  if(trip.heroImg){bg.src=trip.heroImg;bg.style.display='block';}else bg.style.display='none';
+  document.getElementById('tvTitle').textContent=trip.name||'';
+  document.getElementById('tvMeta').textContent=[trip.destinations,trip.dates].filter(Boolean).join(' — ');
+  var cl=document.getElementById('tvClientLogo');
+  if(trip.clientLogo){
+    cl.innerHTML='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block;margin:0 auto" alt=""/>';
+    cl.style.display='flex';
+  } else if(trip.clientName){
+    cl.innerHTML='<span style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300;text-align:center">'+trip.clientName+'</span>';
+    cl.style.display='flex';
+  } else {
+    cl.innerHTML='';cl.style.display='none';
+  }
+  var secs=document.getElementById('tvSecs');
+  secs.innerHTML='<iframe src="about:blank" style="width:100%;height:100vh;border:none;display:block" sandbox="allow-scripts allow-same-origin allow-popups" id="tvFrame"></iframe>';
+  document.getElementById('tvNav').innerHTML='';
+  document.getElementById('tvFrame').srcdoc=buildTravelerHTML(trip);
+}
+
+function checkHash(){
+  var h=window.location.hash;
+  if(h.indexOf('#trip/')===0){
+    var code=h.replace('#trip/','').toLowerCase();
+    // Try local cache first
+    var keys=Object.keys(trips);
+    for(var i=0;i<keys.length;i++){
+      if(trips[keys[i]].code===code){
+        renderTV(trips[keys[i]]);
+        document.getElementById('sTraveler').style.display='block';
+        return;
+      }
+    }
+    // Fetch from SP
+    var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
+    fetch(url,{headers:{Authorization:'Bearer '+(spToken||'')}})
+      .then(function(r){return r.json();})
+      .then(function(data){
+        var items=data.value||[];
+        for(var i=0;i<items.length;i++){
+          try{
+            var t=JSON.parse(items[i].fields.TripData||'{}');
+            if(t.code&&t.code.toLowerCase()===code){
+              renderTV(t);
+              document.getElementById('sTraveler').style.display='block';
+              return;
+            }
+          }catch(e){}
+        }
+      }).catch(function(e){console.error('checkHash fetch error',e);});
+  }
+}
+
+window.addEventListener('hashchange',checkHash);
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
+
+// AI PDF PREFILL
+function setSt(m){var el=document.getElementById('aiSt');if(el)el.textContent=m;}
+function fileToB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(f);});}
+
+function handlePDF(f){
+  if(!f)return;
+  var apiKey=localStorage.getItem('anthropic_key');
+  if(!apiKey){setSt('Add your Anthropic API key in Settings first.');openSettings();return;}
+  setSt('Reading PDF...');
+  fileToB64(f).then(function(b64){return callAI(null,b64,apiKey);}).catch(function(){setSt('Could not read PDF.');});
+}
+
+function callAI(text,pdfB64,apiKey){
+  setSt('Analyzing with AI...');
+  var sys='Return ONLY valid JSON, no markdown. Structure: {"tripName":"","destinations":"","dates":"","days":[{"title":"","date":"","activities":[{"time":"","title":"","desc":"","mapQuery":"venue+city","photo":null}]}]}';
+  var msgs=[{role:'user',content:pdfB64?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},{type:'text',text:'Parse this PDF itinerary into the JSON structure.'}]:[{type:'text',text:'Parse this itinerary:\n\n'+text}]}];
+  return fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:sys,messages:msgs})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    if(data.error){setSt('API error: '+data.error.message);return;}
+    var raw='';var c=data.content||[];for(var i=0;i<c.length;i++){if(c[i].type==='text'){raw=c[i].text;break;}}
+    raw=raw.replace(/```json/g,'').replace(/```/g,'').trim();
+    var p=JSON.parse(raw);
+    if(p.tripName&&!document.getElementById('fName').value){document.getElementById('fName').value=p.tripName;markDirty();}
+    if(p.destinations&&!document.getElementById('fDest').value){document.getElementById('fDest').value=p.destinations;markDirty();}
+    if(p.dates&&!document.getElementById('fDates').value){document.getElementById('fDates').value=p.dates;markDirty();}
+    if(p.days&&p.days.length){eDays=eDays.concat(p.days);renderDays();switchTab('tItinerary');setSt('Done! '+p.days.length+' days added.');markDirty();}
+    else setSt('No days found in PDF.');
+  }).catch(function(err){setSt('Error parsing response.');console.error(err);});
+}
+
+// GITHUB PUBLISH
+function loadSettings(){
+  var token=localStorage.getItem('gh_token')||'';
+  var owner=localStorage.getItem('gh_owner')||'jessicahz10-hash';
+  var repo=localStorage.getItem('gh_repo')||'liaisonstravel';
+  var folder=localStorage.getItem('gh_folder')||'trips';
+  var domain=localStorage.getItem('gh_domain')||'trips.liaisonstravel.com';
+  var apiKey=localStorage.getItem('anthropic_key')||'';
+  var el;
+  el=document.getElementById('anthropicKey');if(el)el.value=apiKey;
+  el=document.getElementById('ghToken');if(el)el.value=token;
+  el=document.getElementById('ghOwner');if(el)el.value=owner;
+  el=document.getElementById('ghRepo');if(el)el.value=repo;
+  el=document.getElementById('ghFolder');if(el)el.value=folder;
+  el=document.getElementById('ghDomain');if(el)el.value=domain;
+}
+
+function saveSettings(){
+  var ak=document.getElementById('anthropicKey');if(ak)localStorage.setItem('anthropic_key',ak.value.trim());
+  localStorage.setItem('gh_token',document.getElementById('ghToken').value.trim());
+  localStorage.setItem('gh_owner',document.getElementById('ghOwner').value.trim());
+  localStorage.setItem('gh_repo',document.getElementById('ghRepo').value.trim());
+  localStorage.setItem('gh_folder',document.getElementById('ghFolder').value.trim());
+  localStorage.setItem('gh_domain',document.getElementById('ghDomain').value.trim());
+  var st=document.getElementById('settingsSaveStatus');
+  if(st){st.textContent='Saved!';setTimeout(function(){st.textContent='';},2000);}
+}
+
+function publishTrip(id){
+  var trip=trips[id];
+  if(!trip){alert('Trip not found.');return;}
+  if(trip.status==='draft'){
+    if(!confirm('This trip is still a DRAFT. Publish anyway?'))return;
+  }
+  var token=localStorage.getItem('gh_token');
+  if(!token){
+    alert('Please add your GitHub token in Settings first.');
+    openSettings();
+    return;
+  }
+  var owner=localStorage.getItem('gh_owner')||'jessicahz10-hash';
+  var repo=localStorage.getItem('gh_repo')||'liaisonstravel';
+  var folder=localStorage.getItem('gh_folder')||'trips';
+  var customDomain=localStorage.getItem('gh_domain')||'trips.liaisonstravel.com';
+  var code=trip.code||'trip';
+  var filename=folder+'/'+code+'.html';
+  var html=buildTravelerHTML(trip);
+  var b64=btoa(unescape(encodeURIComponent(html)));
+  var apiUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+filename;
+  setSyncStatus('Publishing...');
+  // Check if file exists to get SHA for update
+  fetch(apiUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})
+  .then(function(r){return r.ok?r.json():null;})
+  .then(function(existing){
+    var body={message:'Publish trip: '+(trip.name||code),content:b64};
+    if(existing&&existing.sha)body.sha=existing.sha;
+    return fetch(apiUrl,{
+      method:'PUT',
+      headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+      body:JSON.stringify(body)
+    });
+  })
+  .then(function(r){
+    if(!r.ok)return r.text().then(function(t){throw new Error(t);});
+    return r.json();
+  })
+  .then(function(){
+    var clientLink='https://'+customDomain+'/trips/'+code+'.html';
+    setSyncStatus('Published!');
+    setTimeout(function(){setSyncStatus('');},3000);
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(clientLink).then(function(){
+        alert('✅ Published! Client link copied:\n\n'+clientLink+'\n\nSend this to your client — no login required!');
+      });
+    } else {
+      prompt('✅ Published! Client link:',clientLink);
+    }
+  })
+  .catch(function(e){
+    setSyncStatus('Publish failed');
+    console.error(e);
+    alert('Publish failed: '+e.message+'\n\nCheck your GitHub token in Settings.');
+  });
+}
+
+function openSettings(){
+  loadSettings();
+  document.getElementById('settingsModal').classList.add('open');
+}
+
+function wireButtons(){
+  document.getElementById('logoutBtn').addEventListener('click',signOut);
+  document.getElementById('settingsBtn').addEventListener('click',openSettings);
+  document.getElementById('settingsCloseBtn').addEventListener('click',function(){document.getElementById('settingsModal').classList.remove('open');});
+  document.getElementById('settingsSaveBtn').addEventListener('click',saveSettings);
+  document.getElementById('refreshBtn').addEventListener('click',loadTrips);
+  document.getElementById('edCloseBtn').addEventListener('click',closeEditor);
+  document.getElementById('edCancelBtn').addEventListener('click',closeEditor);
+  document.getElementById('edDeleteBtn').addEventListener('click',deleteTrip);
+  document.getElementById('saveTripBtn').addEventListener('click',saveTrip);
+  document.getElementById('closeMobileBtn').addEventListener('click',function(){
+    document.getElementById('prevOverlay').classList.remove('open');
+    document.getElementById('prevFrame').srcdoc='';
+  });
+  document.getElementById('closeDeskBtn').addEventListener('click',function(){
+    document.getElementById('deskOverlay').classList.remove('open');
+    document.getElementById('deskFrame').srcdoc='';
+  });
+  document.getElementById('tvBackBtn').addEventListener('click',function(){
+    document.getElementById('sTraveler').style.display='none';
+  });
+  var pdfEl=document.getElementById('pdfInput');
+  if(pdfEl)pdfEl.addEventListener('change',function(e){if(e.target.files[0])handlePDF(e.target.files[0]);});
+  document.getElementById('addDayBtn').addEventListener('click',function(){
+    eDays.push({title:'',date:'',activities:[]});
+    renderDays();
+    var dbs=document.querySelectorAll('.dib');
+    if(dbs.length)dbs[dbs.length-1].classList.add('open');
+    markDirty();
+  });
+  document.getElementById('addPackBtn').addEventListener('click',function(){ePack.push({label:'',category:''});renderPack();markDirty();});
+  document.getElementById('addInfoBtn').addEventListener('click',function(){eInfo.push({title:'',content:''});renderInfo();markDirty();});
+  document.getElementById('addDocUpBtn').addEventListener('click',addDocUpload);
+  document.getElementById('addDocLinkBtn').addEventListener('click',function(){eDocs.push({type:'link',label:'',url:''});renderDocs();markDirty();});
+  document.getElementById('addCityBtn').addEventListener('click',function(){eCity.push({name:'',imgData:null,tips:''});renderCity();markDirty();});
+
+  document.getElementById('instNoBtn').addEventListener('click',function(){document.getElementById('instBanner').classList.remove('show');});
+  document.getElementById('instYesBtn').addEventListener('click',function(){
+    if(deferredPrompt){deferredPrompt.prompt();}
+    else{alert('iOS: Tap Share then "Add to Home Screen"');}
+  });
+  document.getElementById('editorTabs').addEventListener('click',function(e){
+    var tab=e.target.closest('.ftab');
+    if(tab)switchTab(tab.getAttribute('data-tab'));
+  });
+  if(currentAccount)document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
+  // Mark dirty on any setup field change
+  ['fName','fCode','fDest','fDates','fStatus','fPM','fClient','fWelcome','fPhone','fBoxStyle','fBoxOpacity','fBrandColor'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.addEventListener('input',markDirty);
+    if(el)el.addEventListener('change',markDirty);
+  });
+}
+
+// On page load: if this is a client traveler link, skip PM login entirely
+(function(){
+  var h=window.location.hash;
+  if(h.indexOf('#trip/')===0){
+    var code=h.replace('#trip/','').toLowerCase();
+    document.getElementById('sLogin').style.display='none';
+    var shell=document.getElementById('appShell');
+    shell.style.display='block';
+    // Inject traveler + preview HTML
+    shell.innerHTML='<div id="tripLoading" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">'+
+      '<svg viewBox="0 0 320 28" xmlns="http://www.w3.org/2000/svg" style="height:22px;width:auto">'+
+      '<text x="0" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>'+
+      '<text x="158" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#808080">TRAVEL</text></svg>'+
+      '<p style="font-size:10px;letter-spacing:.2em;color:#B0B0B0;text-transform:uppercase" id="loadMsg">Loading your trip...</p></div>'+
+      getTravelerHTML()+getPreviewHTML();
+    document.getElementById('tvBackBtn').addEventListener('click',function(){
+      window.location.hash='';
+      document.getElementById('sTraveler').style.display='none';
+    });
+    // Load MSAL silently to get token, then fetch trip
+    loadMSALpublic(code);
+    return;
+  }
+  // Normal PM flow
+  document.getElementById('msLoginBtn').addEventListener('click',signIn);
+  loadMSAL();
+})();
+
+function loadMSALpublic(code){
+  var s=document.createElement('script');
+  s.src='https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js';
+  s.crossOrigin='anonymous';
+  s.onload=function(){
+    var config={auth:{clientId:SP_CLIENT_ID,authority:'https://login.microsoftonline.com/'+SP_TENANT,redirectUri:REDIRECT_URI},cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:true}};
+    msalInstance=new msal.PublicClientApplication(config);
+    msalInstance.handleRedirectPromise().then(function(r){
+      if(r){spToken=r.accessToken;fetchPublicTrip(code);}
+      else{
+        var accts=msalInstance.getAllAccounts();
+        if(accts.length>0){currentAccount=accts[0];getToken().then(function(){fetchPublicTrip(code);}).catch(function(){fetchPublicTrip(code);});}
+        else{fetchPublicTrip(code);}
+      }
+    }).catch(function(){fetchPublicTrip(code);});
+  };
+  s.onerror=function(){fetchPublicTrip(code);};
+  document.head.appendChild(s);
+}
+
+function fetchPublicTrip(code){
+  var msg=document.getElementById('loadMsg');
+  var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
+  var hdrs={'Content-Type':'application/json'};
+  if(spToken)hdrs['Authorization']='Bearer '+spToken;
+  fetch(url,{headers:hdrs})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(data){
+      var items=data.value||[];
+      for(var i=0;i<items.length;i++){
+        try{
+          var t=JSON.parse(items[i].fields.TripData||'{}');
+          if(t.code&&t.code.toLowerCase()===code){
+            var loading=document.getElementById('tripLoading');
+            if(loading)loading.style.display='none';
+            renderTV(t);
+            document.getElementById('sTraveler').style.display='block';
+            return;
+          }
+        }catch(e){}
+      }
+      if(msg)msg.textContent='Trip not found.';
+    })
+    .catch(function(e){console.error(e);if(msg)msg.textContent='Could not load trip.';});
+}
+</script>
+</body>
+</html>
