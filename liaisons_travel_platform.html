@@ -41,6 +41,7 @@ var spToken=null;
 var trips={};
 var curId=null;
 var eDays=[],ePack=[],eInfo=[],eDocs=[],eCity=[];
+var eCityPdf=null;
 var eHero=null,eLogo=null,dragSrc=null,deferredPrompt=null;
 var eBoxStyle='frosted-white',eBoxOpacity='0.15',eBrandColor='#5B2D8E';
 var currentFilter='all';
@@ -363,7 +364,11 @@ function getEditorHTML(){
   '<div class="tp" id="tInfo"><div id="infoC"></div><button class="addbtn" id="addInfoBtn">+ Add Section</button></div>'+
   '<div class="tp" id="tDocs"><p style="font-size:12px;color:var(--gray);margin-bottom:16px">Upload PDFs or add links.</p><div id="docsC"></div>'+
   '<div style="display:flex;gap:7px;margin-top:7px"><button class="addbtn" id="addDocUpBtn" style="flex:1">+ Upload PDF</button><button class="addbtn" id="addDocLinkBtn" style="flex:1">+ Add Link</button></div></div>'+
-  '<div class="tp" id="tCity"><div id="cityC"></div><button class="addbtn" id="addCityBtn">+ Add City</button></div>'+
+  '<div class="tp" id="tCity">'+
+  '<p style="font-size:12px;color:var(--gray);line-height:1.7;margin-bottom:16px">Upload a city guide PDF. It will appear as a downloadable on the client page.</p>'+
+  '<div id="cityPdfPrev"></div>'+
+  '<div class="uz" id="cityPdfUpload"><input type="file" accept="application/pdf" id="cityPdfInput"/><p>Click or drag to upload city guide PDF</p></div>'+
+  '</div>'+
 
   '</div>'+
   '<div class="mf"><div style="display:flex;gap:8px"><button class="bg" id="edCancelBtn">Cancel</button><button class="bd" id="edDeleteBtn" style="display:none">Delete Trip</button></div>'+
@@ -605,6 +610,8 @@ function openEditor(id){
   eInfo=t.info?JSON.parse(JSON.stringify(t.info)):[];
   eDocs=t.docs?JSON.parse(JSON.stringify(t.docs)):[];
   eCity=t.cityGuide?JSON.parse(JSON.stringify(t.cityGuide)):[];
+  eCityPdf=t.cityPdf||null;
+  showCityPdfPrev();
   renderDays();renderPack();renderInfo();renderDocs();renderCity();
   setSaveStatus('');
   switchTab('tSetup');
@@ -685,7 +692,8 @@ function saveTrip(auto){
     packing:ePack,
     info:eInfo,
     docs:eDocs,
-    cityGuide:eCity
+    cityGuide:eCity,
+    cityPdf:eCityPdf
   };
 
   // Preserve SP item ID if editing existing trip
@@ -818,6 +826,7 @@ document.addEventListener('change',function(e){
   if(cf){var p=cf.split('-');eCity[p[0]][p[1]]=e.target.value;markDirty();return;}
   if(e.target.id==='heroInput'&&e.target.files[0]){handleImgFile(e.target.files[0],'hero');markDirty();}
   if(e.target.id==='logoInput'&&e.target.files[0]){handleImgFile(e.target.files[0],'logo');markDirty();}
+  if(e.target.id==='cityPdfInput'&&e.target.files[0]){var f=e.target.files[0];var r=new FileReader();r.onload=function(ev){eCityPdf={name:f.name,data:ev.target.result};showCityPdfPrev();markDirty();};r.readAsDataURL(f);}
   var ap=e.target.getAttribute('data-ap');
   if(ap&&e.target.files[0]){
     var p=ap.split('-');var f=e.target.files[0];
@@ -944,6 +953,21 @@ function renderCity(){
   }
 }
 
+function showCityPdfPrev(){
+  var c=document.getElementById('cityPdfPrev');
+  var u=document.getElementById('cityPdfUpload');
+  if(!c)return;
+  if(eCityPdf){
+    c.innerHTML='<div class="uprev" style="margin-bottom:12px"><span style="font-size:12px;color:var(--purple)">&#128196; City Guide PDF uploaded</span><button class="uclear" id="removeCityPdf">Remove</button></div>';
+    if(u)u.style.display='none';
+    var rb=document.getElementById('removeCityPdf');
+    if(rb)rb.addEventListener('click',function(){eCityPdf=null;showCityPdfPrev();markDirty();});
+  } else {
+    c.innerHTML='';
+    if(u)u.style.display='block';
+  }
+}
+
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
 // BUILD TRAVELER HTML (the shareable trip page)
@@ -1026,17 +1050,13 @@ function buildTravelerHTML(trip){
 
   // City Guide
   var cityBody='<p class="sttl">City Guide</p>';
-  if(!trip.cityGuide||!trip.cityGuide.length){cityBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
-  else{
-    cityBody+='<div class="cgg">';
-    for(var i=0;i<trip.cityGuide.length;i++){
-      var city=trip.cityGuide[i];
-      var tips=(city.tips||'').split('\n');
-      var th='';
-      for(var ti=0;ti<tips.length;ti++){if(tips[ti].trim())th+='<li>'+tips[ti]+'</li>';}
-      cityBody+='<div class="cgc"><div class="cgi">'+(city.imgData?'<img src="'+city.imgData+'" style="width:100%;height:100%;object-fit:cover" alt=""/>':'<span style="color:rgba(255,255,255,.5);font-size:11px">'+(city.name||'')+'</span>')+'</div><div class="cgb"><h4>'+(city.name||'')+'</h4><ul class="cgt">'+th+'</ul></div></div>';
-    }
-    cityBody+='</div>';
+  if(trip.cityPdf&&trip.cityPdf.data){
+    cityBody+='<a class="dc" href="'+trip.cityPdf.data+'" target="_blank" download="'+( trip.cityPdf.name||'city-guide.pdf')+'">'+
+    '<div class="dico">PDF</div>'+
+    '<div><div style="font-size:13px;font-weight:400">'+(trip.cityPdf.name||'City Guide')+'</div><div style="font-size:10px;color:#B0B0B0">Tap to open</div></div>'+
+    '<span style="color:var(--brand,#5B2D8E);margin-left:auto">&#8594;</span></a>';
+  } else {
+    cityBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';
   }
   addSec('City Guide',cityBody);
 
@@ -1149,7 +1169,7 @@ contactBtn+
 'var pill=document.querySelectorAll(".dpill")[idx];'+
 'var block=document.getElementById("day"+idx);'+
 'if(pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");}'+
-'if(block){block.style.borderLeft="3px solid #5B2D8E";block.style.paddingLeft="12px";'+
+'if(block){block.style.borderLeft="3px solid "+brandColor;block.style.paddingLeft="12px";'+
 'var badge=document.createElement("span");badge.textContent="TODAY";badge.style.cssText="display:inline-block;background:var(--brand);color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";'+
 'var te=block.querySelector(".dtit");if(te)te.appendChild(badge);'+
 'var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++){if(ns[i].textContent.trim()==="Itinerary")goTab(i,ns[i]);}'+
@@ -1375,7 +1395,7 @@ function wireButtons(){
   document.getElementById('addInfoBtn').addEventListener('click',function(){eInfo.push({title:'',content:''});renderInfo();markDirty();});
   document.getElementById('addDocUpBtn').addEventListener('click',addDocUpload);
   document.getElementById('addDocLinkBtn').addEventListener('click',function(){eDocs.push({type:'link',label:'',url:''});renderDocs();markDirty();});
-  document.getElementById('addCityBtn').addEventListener('click',function(){eCity.push({name:'',imgData:null,tips:''});renderCity();markDirty();});
+  // City guide now uses PDF upload - no addCityBtn needed
 
   document.getElementById('instNoBtn').addEventListener('click',function(){document.getElementById('instBanner').classList.remove('show');});
   document.getElementById('instYesBtn').addEventListener('click',function(){
