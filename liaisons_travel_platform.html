@@ -603,10 +603,12 @@ function publishOnePager(id){
   var domain=localStorage.getItem('gh_domain')||'trips.liaisonstravel.com';
   var code=op.code||'destination';
   var filename='destinations/'+code+'.html';
-  var html=buildOnePagerHTML(op);
-  var b64=btoa(unescape(encodeURIComponent(html)));
+  var html;
+  try{html=buildOnePagerHTML(op);}catch(e){alert('Error building page: '+e.message);console.error(e);return;}
+  var b64;
+  try{b64=btoa(unescape(encodeURIComponent(html)));}catch(e){alert('Page too large to publish ('+Math.round(html.length/1024)+'KB). Try reducing image sizes.');console.error(e);return;}
   var apiUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+filename;
-  setSyncStatus('Publishing...');
+  setSyncStatus('Publishing... ('+Math.round(html.length/1024)+'KB)');
   fetch(apiUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})
   .then(function(r){return r.ok?r.json():null;})
   .then(function(existing){
