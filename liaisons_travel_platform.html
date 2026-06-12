@@ -406,7 +406,9 @@ function saveSettings(){
   alert('Settings saved!');
 }
 var GRAPH_BASE='https://graph.microsoft.com/v1.0';
-var LIST_URL=GRAPH_BASE+'/sites/'+encodeURIComponent(SP_SITE_URL)+'/lists/'+SP_LIST_ID;
+var SP_HOSTNAME='liaisonscorp.sharepoint.com';
+var SP_SITE_PATH='/sites/LiaisonsTravelApp';
+var LIST_URL=GRAPH_BASE+'/sites/'+SP_HOSTNAME+':'+SP_SITE_PATH+':/lists/'+SP_LIST_ID;
 
 function spGet(url){return getToken().then(function(token){return fetch(url,{headers:{Authorization:'Bearer '+token}});}).then(function(r){return r.json();});}
 function spPost(url,body){return getToken().then(function(token){return fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});}).then(function(r){return r.json();});}
