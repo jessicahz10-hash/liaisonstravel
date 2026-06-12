@@ -336,12 +336,23 @@ function getEditorHTML(){
   '<div class="fg"><label class="fl">Trip Password</label><input class="fi" id="fTripPass" placeholder="Optional password for travelers"/></div></div>'+
   '<div style="border-top:1px solid #E0E0E0;margin:20px 0 20px"></div>'+
   '<p style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#808080;margin-bottom:16px">Header Design</p>'+
+  '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">'+
+  '<div>'+
   '<div class="fr"><div class="fg"><label class="fl">Client Brand Color</label><div style="display:flex;align-items:center;gap:10px"><input type="color" id="fBrandColor" value="#5B2D8E" style="width:44px;height:36px;border:1px solid #E0E0E0;padding:2px;cursor:pointer;background:none"/><input class="fi" id="fBrandColorHex" placeholder="#5B2D8E" style="flex:1" maxlength="7"/></div><p style="font-size:9px;color:#B0B0B0;margin-top:4px">Replaces purple throughout the traveler app</p></div>'+
-  '<div class="fg"><label class="fl">Client Logo Position</label><select class="fsel" id="fLogoPos"><option value="top">Top of header</option><option value="center">Center (with title)</option><option value="bottom">Bottom of header</option></select></div></div>'+
+  '<div class="fg"><label class="fl">Client Logo Position</label><select class="fsel" id="fLogoPos"><option value="top">Top of header</option><option value="center">Center with title</option><option value="bottom">Bottom of header</option></select></div></div>'+
   '<div class="fr"><div class="fg"><label class="fl">Title Box Style</label><select class="fsel" id="fBoxStyle"><option value="none">No box</option><option value="white">White transparent box</option><option value="black">Black transparent box</option></select></div>'+
   '<div class="fg"><label class="fl">Box Opacity</label><input class="fi" id="fBoxOpacity" type="number" min="0" max="100" value="40" placeholder="40"/><p style="font-size:9px;color:#B0B0B0;margin-top:4px">0 = invisible, 100 = solid</p></div></div>'+
   '<div class="fr"><div class="fg"><label class="fl">Header Height</label><select class="fsel" id="fHeroHeight"><option value="75vh">Tall (75%)</option><option value="60vh">Medium (60%)</option><option value="45vh">Short (45%)</option><option value="90vh">Full screen (90%)</option></select></div>'+
-  '<div class="fg"><label class="fl">Title Size</label><select class="fsel" id="fTitleSize"><option value="clamp(20px,5vw,52px)">Large</option><option value="clamp(16px,4vw,40px)">Medium</option><option value="clamp(14px,3vw,28px)">Small</option></select></div></div></div>'+
+  '<div class="fg"><label class="fl">Title Size</label><select class="fsel" id="fTitleSize"><option value="clamp(20px,5vw,52px)">Large</option><option value="clamp(16px,4vw,40px)">Medium</option><option value="clamp(14px,3vw,28px)">Small</option></select></div></div>'+
+  '</div>'+
+  '<div>'+
+  '<label class="fl" style="margin-bottom:8px">Live Header Preview</label>'+
+  '<div id="headerPreviewWrap" style="border:1px solid #E0E0E0;overflow:hidden;border-radius:2px">'+
+  '<iframe id="headerPreview" style="width:100%;height:220px;border:none;display:block" sandbox="allow-scripts"></iframe>'+
+  '</div>'+
+  '<p style="font-size:9px;color:#B0B0B0;margin-top:6px">Updates as you change settings above</p>'+
+  '</div>'+
+  '</div></div>'+
   '<div class="tp" id="tItinerary"><div id="daysC"></div><button class="addbtn" id="addDayBtn">+ Add Day</button></div>'+
   '<div class="tp" id="tPacking"><p style="font-size:11px;color:var(--gl);margin-bottom:12px">Drag to reorder</p><ul class="pl" id="packList"></ul><button class="addbtn" id="addPackBtn">+ Add Item</button></div>'+
   '<div class="tp" id="tInfo"><div id="infoC"></div><button class="addbtn" id="addInfoBtn">+ Add Section</button></div>'+
@@ -438,6 +449,7 @@ function loadTrips(){
     }
     setSyncStatus('Synced '+new Date().toLocaleTimeString());
     renderDash();
+    checkHash();
   }).catch(function(e){setSyncStatus('Sync failed');console.error(e);renderDash();});
 }
 
@@ -533,6 +545,7 @@ function openEditor(id){
   updateShare(t.code||'');
   switchTab('tSetup');
   document.getElementById('editorModal').classList.add('open');
+  setTimeout(refreshHeaderPreview,50);
 }
 function closeEditor(){document.getElementById('editorModal').classList.remove('open');}
 function switchTab(id){
@@ -565,7 +578,7 @@ function deleteTrip(){
 }
 
 function showImgPrev(cid,data){var c=document.getElementById(cid);if(!c)return;c.innerHTML=data?'<div class="uprev"><img src="'+data+'" alt=""/><button class="uclear" data-clear="'+cid+'">Remove</button></div>':'';}
-function handleImgFile(file,type){var r=new FileReader();r.onload=function(ev){if(type==='hero'){eHero=ev.target.result;showImgPrev('heroPrev',eHero);}else{eLogo=ev.target.result;showImgPrev('logoPrev',eLogo);}};r.readAsDataURL(file);}
+function handleImgFile(file,type){var r=new FileReader();r.onload=function(ev){if(type==='hero'){eHero=ev.target.result;showImgPrev('heroPrev',eHero);}else{eLogo=ev.target.result;showImgPrev('logoPrev',eLogo);}refreshHeaderPreview();};r.readAsDataURL(file);}
 document.addEventListener('click',function(e){var b=e.target.closest('[data-clear]');if(b){var cid=b.getAttribute('data-clear');if(cid==='heroPrev')eHero=null;else eLogo=null;showImgPrev(cid,null);}});
 
 function setSt(m){var el=document.getElementById('aiSt');if(el)el.textContent=m;}
@@ -747,7 +760,7 @@ function buildHTML(trip){
   (logoPos==='bottom'?clientBlock:'')+
   '<div class="hlt"><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:13px;width:auto"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="white">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="rgba(255,255,255,.8)">TRAVEL</text></svg></div></div></div>'+
   '<nav>'+navItems+'</nav><div id="secs">'+sections.join('')+'</div>'+contactBtn+
-  '<footer><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:14px;width:auto;display:block;margin:0 auto 11px"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="'+brandColor+'">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#808080">TRAVEL</text></svg><p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0;margin-bottom:12px">ART - TRAVEL - CULTURE - LIFESTYLE</p><a href="https://www.liaisonstravel.com" target="_blank">liaisonstravel.com</a><a href="https://www.instagram.com/liaisonstravel/" target="_blank">@liaisonstravel</a></footer>'+
+  '<footer><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:14px;width:auto;display:block;margin:0 auto 11px"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#5B2D8E">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#808080">TRAVEL</text></svg><p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0;margin-bottom:12px">ART - TRAVEL - CULTURE - LIFESTYLE</p><a href="https://www.liaisonstravel.com" target="_blank">liaisonstravel.com</a><a href="https://www.instagram.com/liaisonstravel/" target="_blank">@liaisonstravel</a></footer>'+
   '<script>function goTab(idx,el){var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++)ns[i].classList.remove("active");var ss=document.querySelectorAll(".sec");for(var i=0;i<ss.length;i++)ss[i].classList.remove("active");el.classList.add("active");var s=document.getElementById("s"+idx);if(s){s.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}}function goDay(idx,pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");var b=document.getElementById("day"+idx);if(b)b.scrollIntoView({behavior:"smooth",block:"start"});}function tMap(id,btn){var f=document.getElementById(id);if(!f)return;var open=f.classList.toggle("open");if(open&&f.dataset.src&&!f.src)f.src=f.dataset.src;btn.textContent=open?"Hide Map":"View on Map";}(function(){var days='+daysJSON+';if(!days.length)return;var today=new Date();today.setHours(0,0,0,0);var idx=0;for(var i=0;i<days.length;i++){if(!days[i].date)continue;var p=new Date(days[i].date);if(isNaN(p.getTime()))continue;p.setHours(0,0,0,0);if(p.getTime()===today.getTime()){idx=i;break;}}setTimeout(function(){var pill=document.querySelectorAll(".dpill")[idx];var block=document.getElementById("day"+idx);if(pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");}if(block){block.style.borderLeft="3px solid '+brandColor+'";block.style.paddingLeft="12px";var badge=document.createElement("span");badge.textContent="TODAY";badge.style.cssText="display:inline-block;background:'+brandColor+';color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";var te=block.querySelector(".dtit");if(te)te.appendChild(badge);var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++){if(ns[i].textContent.trim()==="Itinerary")goTab(i,ns[i]);}block.scrollIntoView({behavior:"smooth",block:"start"});}},600);})();<\/script></body></html>';
 }
 
@@ -772,8 +785,8 @@ function checkHash(){
     var code=h.replace('#trip/','').toLowerCase();
     var keys=Object.keys(trips);
     for(var i=0;i<keys.length;i++){if(trips[keys[i]].code===code){renderTV(trips[keys[i]]);document.getElementById('sTraveler').style.display='block';return;}}
-    // Not in cache - fetch from SP without auth
-    var url=LIST_URL+'/items?$expand=fields($select=TripCode,TripData)&$filter=fields/TripCode eq \''+code+'\'&$top=1';
+    // Not in cache - fetch from SP
+    var url=LIST_URL+'/items?$expand=fields($select=TripCode,TripData)&$filter=fields/TripCode eq \''+encodeURIComponent(code)+'\'&$top=1';
     fetch(url,{headers:{Authorization:'Bearer '+(spToken||'')}})
     .then(function(r){return r.json();})
     .then(function(data){
@@ -783,7 +796,50 @@ function checkHash(){
   }
 }
 window.addEventListener('hashchange',checkHash);
+window.addEventListener('load',function(){if(window.location.hash.indexOf('#trip/')===0)checkHash();});
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
+
+function refreshHeaderPreview(){
+  var frame=document.getElementById('headerPreview');
+  if(!frame)return;
+  var brandColor=document.getElementById('fBrandColorHex').value||document.getElementById('fBrandColor').value||'#5B2D8E';
+  var heroHeight=document.getElementById('fHeroHeight').value||'75vh';
+  var titleSize=document.getElementById('fTitleSize').value||'clamp(20px,5vw,52px)';
+  var boxStyle=document.getElementById('fBoxStyle').value||'none';
+  var boxOpacity=Math.min(100,Math.max(0,parseInt(document.getElementById('fBoxOpacity').value)||40))/100;
+  var logoPos=document.getElementById('fLogoPos').value||'center';
+  var tripName=document.getElementById('fName').value||'Trip Name';
+  var tripDest=document.getElementById('fDest').value||'Destination';
+  var tripDates=document.getElementById('fDates').value||'';
+  var heroImg=eHero||'';
+  var clientLogo=eLogo||'';
+  var clientName=document.getElementById('fClient').value||'';
+  var boxCSS='';
+  if(boxStyle==='white')boxCSS='background:rgba(255,255,255,'+boxOpacity+');padding:16px 24px;';
+  else if(boxStyle==='black')boxCSS='background:rgba(0,0,0,'+boxOpacity+');padding:16px 24px;';
+  var logoHTML='';
+  if(clientLogo){logoHTML='<img src="'+clientLogo+'" style="max-height:50px;max-width:140px;object-fit:contain;display:block;margin:0 auto" alt=""/>';}
+  else if(clientName){logoHTML='<div style="color:#fff;font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:300">'+clientName+'</div>';}
+  var logoTop=logoPos==='top'?'<div style="position:absolute;top:16px;left:0;right:0;text-align:center;z-index:3">'+logoHTML+'</div>':'';
+  var logoBottom=logoPos==='bottom'?'<div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;z-index:3">'+logoHTML+'</div>':'';
+  var logoCenter=logoPos==='center'?'<div style="margin-bottom:10px">'+logoHTML+'</div>':'';
+  var meta=[tripDest,tripDates].filter(Boolean).join(' - ');
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif}.hero{position:relative;height:220px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}.hbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}.hdk{position:absolute;inset:0;background:rgba(0,0,0,.32)}.hov{position:relative;z-index:2;text-align:center;padding:16px;width:100%;display:flex;flex-direction:column;align-items:center}.hbox{'+boxCSS+'display:inline-flex;flex-direction:column;align-items:center}.htl{color:#fff;font-size:clamp(14px,4vw,32px);font-weight:100;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}.hmt{color:rgba(255,255,255,.75);font-size:10px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:12px}.hlt{opacity:.6}</style></head><body>'+
+    '<div class="hero">'+
+    (heroImg?'<img class="hbg" src="'+heroImg+'" alt=""/>':'')+
+    '<div class="hdk"></div>'+
+    '<div class="hov">'+
+    logoTop+
+    '<div class="hbox">'+
+    logoCenter+
+    '<div class="htl">'+tripName+'</div>'+
+    '<div class="hmt">'+meta+'</div>'+
+    '</div>'+
+    logoBottom+
+    '<div class="hlt"><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:10px;width:auto"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="white">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="rgba(255,255,255,.8)">TRAVEL</text></svg></div>'+
+    '</div></div></body></html>';
+  frame.srcdoc=html;
+}
 
 function wireButtons(){
   document.getElementById('settingsBtn').addEventListener('click',openSettings);
@@ -809,8 +865,10 @@ function wireButtons(){
   document.getElementById('instNoBtn').addEventListener('click',function(){document.getElementById('instBanner').classList.remove('show');});
   document.getElementById('instYesBtn').addEventListener('click',function(){if(deferredPrompt){deferredPrompt.prompt();}else{alert('iOS: Share then Add to Home Screen');}});
   document.getElementById('editorTabs').addEventListener('click',function(e){var tab=e.target.closest('.ftab');if(tab)switchTab(tab.getAttribute('data-tab'));});
-  document.getElementById('fBrandColor').addEventListener('input',function(){document.getElementById('fBrandColorHex').value=this.value;});
-  document.getElementById('fBrandColorHex').addEventListener('input',function(){var v=this.value;if(/^#[0-9A-Fa-f]{6}$/.test(v))document.getElementById('fBrandColor').value=v;});
+  document.getElementById('fBrandColor').addEventListener('input',function(){document.getElementById('fBrandColorHex').value=this.value;refreshHeaderPreview();});
+  document.getElementById('fBrandColorHex').addEventListener('input',function(){var v=this.value;if(/^#[0-9A-Fa-f]{6}$/.test(v))document.getElementById('fBrandColor').value=v;refreshHeaderPreview();});
+  ['fLogoPos','fBoxStyle','fBoxOpacity','fHeroHeight','fTitleSize'].forEach(function(id){document.getElementById(id).addEventListener('change',refreshHeaderPreview);document.getElementById(id).addEventListener('input',refreshHeaderPreview);});
+  ['fName','fDest','fDates','fClient'].forEach(function(id){document.getElementById(id).addEventListener('input',refreshHeaderPreview);});
   if(currentAccount)document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
 }
 
