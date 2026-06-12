@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v2026-05-06-r2 -->
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -12,9 +12,13 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
 </head>
 <body>
 
+<!-- LOGIN shown immediately via inline style - no JS needed to appear -->
 <div id="sLogin" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center">
   <div style="text-align:center;padding:56px 36px;max-width:400px;width:100%">
-    <img src="https://trips.liaisonstravel.com/LIAISONS_TRAVEL_LOGO-01.png" style="height:28px;width:auto;display:block;margin:0 auto" alt="LIAISONS TRAVEL"/>
+    <svg viewBox="0 0 320 28" xmlns="http://www.w3.org/2000/svg" style="height:26px;width:auto;display:block;margin:0 auto">
+      <text x="0" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#5B2D8E">LIAISONS</text>
+      <text x="158" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#808080">TRAVEL</text>
+    </svg>
     <p style="color:#B0B0B0;letter-spacing:.2em;font-size:10px;text-transform:uppercase;margin-top:8px">Trip Management Platform</p>
     <div style="width:36px;height:1px;background:#5B2D8E;margin:10px auto 36px"></div>
     <p style="font-size:13px;color:#808080;margin-bottom:24px;line-height:1.6">Sign in with your Liaisons Microsoft account.</p>
@@ -26,86 +30,118 @@ body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--w)
   </div>
 </div>
 
+<!-- REST OF APP LOADS HERE -->
 <div id="appShell" style="display:none"></div>
 
 <script>
-var LOGO_URL='https://trips.liaisonstravel.com/LIAISONS_TRAVEL_LOGO-01.png';
+// CONFIG
 var SP_CLIENT_ID='1b2a2847-d244-42a7-b8a4-467ea52bce69';
 var SP_TENANT='2c8fc928-8e15-4ede-971c-9395fb444514';
+var SP_SITE_URL='https://liaisonscorp.sharepoint.com/sites/LiaisonsTravelApp';
 var SP_LIST_ID='e872be72-37f8-4562-984c-aad8b0b20d27';
-var REDIRECT_URI=window.location.origin+window.location.pathname;
+var REDIRECT_URI='https://jessicahz10-hash.github.io/liaisonstravel/liaisons_travel_platform.html';
+var AI_MODEL='claude-sonnet-4-20250514';
+var GEMINI_KEY=localStorage.getItem('gemini_key')||'';
 var msalInstance=null;
 var currentAccount=null;
 var spToken=null;
-
-// Data stores
 var trips={};
-var onePagers={};
-var currentView='trips'; // 'trips' or 'onepagers'
-
-// Trip editor state
 var curId=null;
 var eDays=[],ePack=[],eInfo=[],eDocs=[],eCity=[];
-var eCityPdf=null;
 var eHero=null,eLogo=null,dragSrc=null,deferredPrompt=null;
-var eBoxStyle='frosted-white',eBoxOpacity='0.15',eBrandColor='#5B2D8E';
 var currentFilter='all';
 
-// One Pager editor state
-var curOpId=null;
-var opImages=[]; // array of {data, caption}
-var opBullets=[]; // array of strings
-var autoSaveTimer=null;
-var hasUnsavedChanges=false;
+function setErr(msg){document.getElementById('loginErr').textContent=msg;}
 
-var GRAPH_BASE='https://graph.microsoft.com/v1.0';
-var LIST_URL=GRAPH_BASE+'/sites/liaisonscorp.sharepoint.com:/sites/LiaisonsTravelApp:/lists/'+SP_LIST_ID;
-
-function setErr(msg){var el=document.getElementById('loginErr');if(el)el.textContent=msg;}
-
+// Load MSAL dynamically after page renders
 function loadMSAL(){
   var s=document.createElement('script');
   s.src='https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js';
   s.crossOrigin='anonymous';
   s.onload=function(){initMSAL();};
   s.onerror=function(){
+    // Try fallback CDN
     var s2=document.createElement('script');
     s2.src='https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.1/lib/msal-browser.min.js';
     s2.crossOrigin='anonymous';
     s2.onload=function(){initMSAL();};
-    s2.onerror=function(){setErr('Could not load Microsoft auth.');};
+    s2.onerror=function(){setErr('Could not load Microsoft auth. Please check your internet connection.');};
     document.head.appendChild(s2);
   };
   document.head.appendChild(s);
 }
 
 function initMSAL(){
-  var config={auth:{clientId:SP_CLIENT_ID,authority:'https://login.microsoftonline.com/'+SP_TENANT,redirectUri:REDIRECT_URI,navigateToLoginRequestUrl:true},cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:true}};
+  var config={
+    auth:{
+      clientId:SP_CLIENT_ID,
+      authority:'https://login.microsoftonline.com/'+SP_TENANT,
+      redirectUri:REDIRECT_URI,
+      navigateToLoginRequestUrl:true
+    },
+    cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:true}
+  };
   msalInstance=new msal.PublicClientApplication(config);
   msalInstance.handleRedirectPromise().then(function(r){
-    if(r){currentAccount=r.account;spToken=r.accessToken;onSignedIn();}
-    else{var accounts=msalInstance.getAllAccounts();if(accounts.length>0){currentAccount=accounts[0];getToken().then(function(){onSignedIn();}).catch(function(){showLogin();});}else{showLogin();}}
-  }).catch(function(e){console.error(e);showLogin();});
+    if(r){
+      currentAccount=r.account;
+      spToken=r.accessToken;
+      onSignedIn();
+    } else {
+      var accounts=msalInstance.getAllAccounts();
+      if(accounts.length>0){
+        currentAccount=accounts[0];
+        getToken().then(function(){onSignedIn();}).catch(function(){showLogin();});
+      } else {
+        showLogin();
+      }
+    }
+  }).catch(function(e){
+    console.error(e);
+    showLogin();
+  });
 }
 
-function showLogin(){document.getElementById('sLogin').style.display='flex';setErr('');}
-function signIn(){if(!msalInstance){setErr('Auth loading...');return;}setErr('Redirecting...');msalInstance.loginRedirect({scopes:['https://graph.microsoft.com/Sites.ReadWrite.All']});}
-function signOut(){if(msalInstance&&currentAccount){msalInstance.logoutRedirect({account:currentAccount});}else{showLogin();}}
+function showLogin(){
+  document.getElementById('sLogin').style.display='flex';
+  setErr('');
+}
+
+function signIn(){
+  if(!msalInstance){setErr('Auth loading... please wait and try again.');return;}
+  setErr('Redirecting to Microsoft...');
+  msalInstance.loginRedirect({scopes:['https://graph.microsoft.com/Sites.ReadWrite.All']});
+}
+
+function signOut(){
+  if(msalInstance&&currentAccount){
+    msalInstance.logoutRedirect({account:currentAccount});
+  } else {
+    showLogin();
+  }
+}
 
 function getToken(){
   if(!msalInstance||!currentAccount)return Promise.reject('Not signed in');
-  return msalInstance.acquireTokenSilent({scopes:['https://graph.microsoft.com/Sites.ReadWrite.All'],account:currentAccount})
-    .then(function(r){spToken=r.accessToken;return spToken;})
-    .catch(function(){return msalInstance.acquireTokenRedirect({scopes:['https://graph.microsoft.com/Sites.ReadWrite.All'],account:currentAccount});});
+  return msalInstance.acquireTokenSilent({
+    scopes:['https://graph.microsoft.com/Sites.ReadWrite.All'],
+    account:currentAccount
+  }).then(function(r){spToken=r.accessToken;return spToken;})
+  .catch(function(){
+    return msalInstance.acquireTokenRedirect({
+      scopes:['https://graph.microsoft.com/Sites.ReadWrite.All'],
+      account:currentAccount
+    });
+  });
 }
 
 function onSignedIn(){
   document.getElementById('sLogin').style.display='none';
   buildApp();
-  setInterval(function(){getToken().catch(function(){setSyncStatus('Session expired - please refresh');});},45*60*1000);
-  loadAll();
+  loadTrips();
 }
 
+// BUILD FULL APP HTML
 function buildApp(){
   var shell=document.getElementById('appShell');
   shell.style.display='block';
@@ -114,7 +150,7 @@ function buildApp(){
 }
 
 function getAppHTML(){
-  return '<style>'+getCSS()+'</style>'+getDashHTML()+getEditorHTML()+getOnePagerEditorHTML()+getTravelerHTML()+getPreviewHTML()+getSettingsHTML();
+  return '<style>'+getCSS()+'</style>'+getDashHTML()+getEditorHTML()+getTravelerHTML()+getPreviewHTML();
 }
 
 function getCSS(){
@@ -122,6 +158,7 @@ function getCSS(){
 '.bp:hover{background:var(--pl)}.bs{background:transparent;color:var(--purple);border:1px solid var(--purple);padding:9px 20px;letter-spacing:.12em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit}.bs:hover{background:var(--purple);color:#fff}'+
 '.bg{background:transparent;color:var(--gray);border:1px solid var(--b);padding:7px 16px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit}.bg:hover{border-color:var(--gray)}'+
 '.bd{background:transparent;color:#c0392b;border:1px solid #c0392b;padding:7px 13px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit}'+
+'.bai{background:#f3eefa;color:var(--purple);border:1px solid var(--purple);padding:8px 16px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px}.bai:hover{background:var(--purple);color:#fff}'+
 '.status{font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:20px}'+
 '.status.draft{background:#f5f5f5;color:#808080;border:1px solid #e0e0e0}'+
 '.status.pending{background:#fff8e6;color:#e6a817;border:1px solid #f0d080}'+
@@ -130,9 +167,6 @@ function getCSS(){
 '.status.archived{background:#f5f5f5;color:#b0b0b0;border:1px solid #e0e0e0}'+
 '.dh{background:var(--w);border-bottom:1px solid var(--b);padding:16px 36px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}'+
 '.db{max-width:1100px;margin:0 auto;padding:40px 22px}'+
-'.view-tabs{display:flex;gap:0;margin-bottom:28px;border-bottom:2px solid var(--b)}'+
-'.vtab{padding:10px 24px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--gl);font-family:inherit;background:none;border-left:none;border-right:none;border-top:none}'+
-'.vtab.active{color:var(--purple);border-bottom-color:var(--purple)}'+
 '.filter-bar{display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap}'+
 '.fbtn{background:transparent;border:1px solid var(--b);padding:5px 14px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:var(--gray);border-radius:20px}'+
 '.fbtn.active{background:var(--purple);border-color:var(--purple);color:#fff}'+
@@ -175,6 +209,8 @@ function getCSS(){
 '.uprev{margin-top:7px;display:flex;align-items:center;gap:8px}'+
 '.uprev img{max-height:56px;max-width:130px;object-fit:contain;border:1px solid var(--b);background:#fff;padding:3px}'+
 '.uclear{background:none;border:none;color:#c0392b;cursor:pointer;font-size:10px;font-family:inherit}'+
+'.aib{background:#f3eefa;border:1px solid #c9a8e8;padding:14px 18px;margin-bottom:22px;display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}'+
+'.aist{font-size:11px;color:var(--purple);margin-top:7px;min-height:16px;font-style:italic}'+
 '.di{border:1px solid var(--b);margin-bottom:12px}'+
 '.dih{padding:11px 13px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--bg)}'+
 '.dih h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:300}'+
@@ -201,25 +237,23 @@ function getCSS(){
 '.lkbox{background:var(--bg);border:1px solid var(--b);padding:10px 13px;display:flex;align-items:center;gap:9px;margin-top:12px}'+
 '.lkbox input{flex:1;background:transparent;border:none;font-size:13px;color:var(--purple);outline:none;font-family:inherit}'+
 '.lkcopy{background:var(--purple);color:#fff;border:none;padding:6px 13px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;font-family:inherit}'+
-'.pvo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:2000;overflow-y:auto}'+
-'.pvo.open{display:block}'+
-'.pvo-inner{display:flex;flex-direction:column;align-items:center;padding:18px;min-height:100%;gap:16px}'+
-'.pvcl{color:#fff;background:none;border:1px solid rgba(255,255,255,.3);padding:7px 18px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;font-family:inherit;flex-shrink:0}'+
-'.pshell{width:375px;background:#111;border-radius:50px;padding:11px;box-shadow:0 0 0 2px #333,0 40px 100px rgba(0,0,0,.8);position:relative;flex-shrink:0}'+
+'.pvo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.86);z-index:2000;align-items:center;justify-content:center;flex-direction:column;gap:16px}'+
+'.pvo.open{display:flex}'+
+'.pvcl{color:#fff;background:none;border:1px solid rgba(255,255,255,.3);padding:7px 18px;font-size:10px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;font-family:inherit}'+
+'.pshell{width:375px;height:720px;background:#111;border-radius:50px;padding:11px;box-shadow:0 0 0 2px #333,0 40px 100px rgba(0,0,0,.8);position:relative;flex-shrink:0}'+
 '.pshell::before{content:"";position:absolute;top:11px;left:50%;transform:translateX(-50%);width:100px;height:28px;background:#111;border-radius:0 0 16px 16px;z-index:5}'+
-'.pscreen{width:100%;border-radius:40px;overflow:hidden;background:#fff}'+
-'.pscreen iframe{width:375px;height:700px;border:none;display:block}'+
+'.pscreen{width:100%;height:100%;border-radius:40px;overflow:hidden;background:#fff}'+
+'.pscreen iframe{width:375px;height:698px;border:none;display:block}'+
 '#deskOverlay{display:none;position:fixed;inset:0;z-index:3000;background:#fff;flex-direction:column}'+
 '#deskOverlay.open{display:flex}'+
-'#sTraveler{overflow-y:auto}'+
 '.tvh{position:relative;height:75vh;min-height:380px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}'+
 '.tvhbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}'+
 '.tvhdark{position:absolute;inset:0;background:rgba(0,0,0,.35)}'+
 '.tvhov{position:relative;z-index:2;text-align:center;padding:22px;width:100%;display:flex;flex-direction:column;align-items:center}'+
-'.tvclientlogo{margin-bottom:14px;width:100%;display:flex;justify-content:center;align-items:center}'+
-'.tvtitle{color:#fff;font-size:clamp(20px,5vw,52px);font-weight:100;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;text-align:center;width:100%}'+
-'.tvmeta{color:rgba(255,255,255,.75);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:24px;text-align:center}'+
-'.tvltlogo{opacity:.6;margin-top:10px;display:flex;justify-content:center;width:100%}'+
+'.tvclientlogo{margin-bottom:14px;display:flex;justify-content:center;min-height:10px}'+
+'.tvtitle{color:#fff;font-size:clamp(20px,5vw,52px);font-weight:100;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}'+
+'.tvmeta{color:rgba(255,255,255,.75);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:24px}'+
+'.tvltlogo{opacity:.6;margin-top:10px}'+
 '.tvback{position:absolute;top:18px;left:18px;z-index:10;color:rgba(255,255,255,.8);background:transparent;border:1px solid rgba(255,255,255,.4);padding:6px 13px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit}'+
 '.tvnav{position:sticky;top:0;z-index:100;background:var(--w);border-bottom:1px solid var(--b);display:flex;overflow-x:auto}'+
 '.tvnav::-webkit-scrollbar{display:none}'+
@@ -234,33 +268,20 @@ function getCSS(){
 '.instbtns{display:flex;gap:7px}'+
 '.instbtns button{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:5px 11px;font-size:10px;cursor:pointer;font-family:inherit}'+
 '.instbtns button.yes{background:#fff;color:var(--purple)}'+
-'@media(max-width:580px){.fr,.abot{grid-template-columns:1fr}.dh{padding:13px 16px}.mb{padding:16px 13px}}'+
-// One Pager image grid
-'.op-img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:12px}'+
-'.op-img-item{border:1px solid var(--b);position:relative;background:var(--bg)}'+
-'.op-img-item img{width:100%;height:140px;object-fit:cover;display:block}'+
-'.op-img-item .op-img-remove{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}'+
-'.op-img-item input.fi{border-bottom:1px solid var(--b);font-size:11px;padding:4px 6px;width:100%}'+
-'.bullet-item{display:flex;align-items:center;gap:8px;margin-bottom:6px}'+
-'.bullet-item textarea{flex:1;border:1px solid var(--b);padding:6px 8px;font-size:13px;font-weight:300;outline:none;resize:none;font-family:inherit;min-height:40px}'+
-'.bullet-item textarea:focus{border-color:var(--purple)}';
+'@media(max-width:580px){.fr,.abot{grid-template-columns:1fr}.dh{padding:13px 16px}.mb{padding:16px 13px}}';
 }
 
 function getDashHTML(){
   return '<div id="sDash" style="background:var(--bg);min-height:100vh">'+
   '<div class="dh">'+
-  '<img src="'+LOGO_URL+'" style="height:18px;width:auto;display:block" alt="LIAISONS TRAVEL"/>'+
-  '<div style="display:flex;gap:9px;align-items:center"><span style="font-size:10px;letter-spacing:.1em;color:var(--gl)" id="userLabel"></span><button class="bg" id="settingsBtn">Settings</button><button class="bg" id="logoutBtn">Sign Out</button></div>'+
+  '<svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:18px;width:auto"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#5B2D8E">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#808080">TRAVEL</text></svg>'+
+      '<div style="display:flex;gap:9px;align-items:center"><span style="font-size:10px;letter-spacing:.1em;color:var(--gl)" id="userLabel"></span><button class="bg" id="settingsBtn">⚙ Settings</button><button class="bg" id="logoutBtn">Sign Out</button></div>'+
   '</div>'+
   '<div class="db">'+
   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">'+
-  '<div class="view-tabs">'+
-  '<button class="vtab active" id="tabTrips">Trips</button>'+
-  '<button class="vtab" id="tabOnePagers">One Pagers</button>'+
-  '</div>'+
+  '<p style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gray)">All Trips</p>'+
   '<div style="display:flex;align-items:center;gap:8px"><span id="syncStatus" style="font-size:10px;color:var(--gl)"></span><button class="bg" id="refreshBtn">Refresh</button></div>'+
   '</div>'+
-  '<div id="tripsView">'+
   '<div class="filter-bar" id="filterBar">'+
   '<button class="fbtn active" data-filter="all">All</button>'+
   '<button class="fbtn" data-filter="draft">Draft</button>'+
@@ -270,24 +291,24 @@ function getDashHTML(){
   '<button class="fbtn" data-filter="archived">Archived</button>'+
   '</div>'+
   '<div class="tg" id="tripsGrid"></div>'+
-  '</div>'+
-  '<div id="onePagersView" style="display:none">'+
-  '<div class="tg" id="onePagersGrid"></div>'+
-  '</div>'+
   '</div></div>';
 }
 
 function getEditorHTML(){
   return '<div class="mo" id="editorModal">'+
   '<div class="md">'+
-  '<div class="mh"><h2 id="edTitle">New Trip</h2><button class="mcl" id="edCloseBtn">&times;</button></div>'+
+  '<div class="mh"><h2 id="edTitle">New Trip</h2><button class="mcl" id="edCloseBtn">x</button></div>'+
   '<div class="mb">'+
-  '<div style="background:#f3eefa;border-left:3px solid var(--purple);padding:16px 18px;margin-bottom:22px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">'+
-  '<div><p style="font-size:11px;color:var(--purple);font-weight:500;margin-bottom:3px">✨ AI Itinerary Pre-fill</p>'+
-  '<span style="font-size:10px;color:var(--gl)" id="aiSt">Upload a PDF itinerary to auto-populate days and activities</span></div>'+
-  '<label style="background:var(--purple);color:#fff;padding:9px 18px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;white-space:nowrap;position:relative;flex-shrink:0">'+
-  '<input type="file" accept="application/pdf" id="pdfInput" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"/>&#128196; Upload PDF</label>'+
-  '</div>'+
+  '<div class="aib"><div style="font-size:19px;margin-top:2px">✨</div>'+
+  '<div style="flex:1"><p style="font-size:12px;color:var(--purple);margin-bottom:2px;font-weight:400">AI Itinerary Pre-fill</p>'+
+  '<span style="font-size:10px;color:var(--gl)">Upload a PDF or paste text to auto-populate days</span>'+
+  '<div class="aist" id="aiSt"></div></div>'+
+  '<div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center">'+
+  '<label class="bai" style="position:relative;cursor:pointer"><input type="file" accept="application/pdf" id="pdfInput" style="position:absolute;inset:0;opacity:0;cursor:pointer"/>PDF Upload</label>'+
+  '<button class="bai" id="pasteBtn">Paste Text</button></div></div>'+
+  '<div id="pasteArea" style="display:none;margin-bottom:18px">'+
+  '<textarea class="fta" id="pasteText" placeholder="Paste itinerary text..." style="min-height:110px"></textarea>'+
+  '<div style="display:flex;gap:7px;margin-top:7px"><button class="bp" id="genBtn" style="width:auto;padding:8px 18px">Generate</button><button class="bg" id="cancelPasteBtn">Cancel</button></div></div>'+
   '<div class="ftabs" id="editorTabs">'+
   '<div class="ftab active" data-tab="tSetup">Setup</div>'+
   '<div class="ftab" data-tab="tItinerary">Itinerary</div>'+
@@ -295,6 +316,7 @@ function getEditorHTML(){
   '<div class="ftab" data-tab="tInfo">General Info</div>'+
   '<div class="ftab" data-tab="tDocs">Documents</div>'+
   '<div class="ftab" data-tab="tCity">City Guide</div>'+
+  '<div class="ftab" data-tab="tShare">Share</div>'+
   '</div>'+
   '<div class="tp active" id="tSetup">'+
   '<div class="fr"><div class="fg"><label class="fl">Trip Name *</label><input class="fi" id="fName" placeholder="e.g. Venice 2025"/></div>'+
@@ -309,66 +331,26 @@ function getEditorHTML(){
   '<div class="fg"><label class="fl">Client Name</label><input class="fi" id="fClient" placeholder="e.g. Faena Rose" style="margin-bottom:16px"/>'+
   '<label class="fl">Client Logo</label><div class="uz"><input type="file" accept="image/*" id="logoInput"/><p>Click or drag to upload</p></div><div id="logoPrev"></div></div></div>'+
   '<div class="fg"><label class="fl">Welcome Message</label><textarea class="fta" id="fWelcome" placeholder="A short welcome note..."></textarea></div>'+
-  '<div class="fg"><label class="fl">Coordinator WhatsApp</label><input class="fi" id="fPhone" placeholder="+1 305 000 0000"/></div>'+
-  '<div class="fg"><label class="fl">Client Brand Color</label>'+
-  '<div style="display:flex;align-items:center;gap:12px;margin-top:4px">'+
-  '<input type="color" id="fBrandColor" value="#5B2D8E" style="width:44px;height:36px;border:1px solid var(--b);cursor:pointer;padding:2px;background:transparent"/>'+
-  '<span style="font-size:11px;color:var(--gl)">Replaces purple on client page.</span>'+
-  '</div></div>'+
-  '<div style="border-top:1px solid var(--b);margin:22px 0 18px"></div>'+
-  '<p style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);margin-bottom:16px">Hero Box Style</p>'+
-  '<div class="fr">'+
-  '<div class="fg"><label class="fl">Box Style</label>'+
-  '<select class="fsel" id="fBoxStyle"><option value="frosted-white">Frosted White</option><option value="frosted-dark">Frosted Dark</option><option value="none">No Box</option></select></div>'+
-  '<div class="fg"><label class="fl">Box Opacity</label>'+
-  '<select class="fsel" id="fBoxOpacity"><option value="0.10">Very subtle (10%)</option><option value="0.15" selected>Light (15%)</option><option value="0.25">Medium (25%)</option><option value="0.40">Strong (40%)</option></select></div>'+
-  '</div></div>'+
+  '<div class="fg"><label class="fl">Coordinator WhatsApp</label><input class="fi" id="fPhone" placeholder="+1 305 000 0000"/></div></div>'+
   '<div class="tp" id="tItinerary"><div id="daysC"></div><button class="addbtn" id="addDayBtn">+ Add Day</button></div>'+
   '<div class="tp" id="tPacking"><p style="font-size:11px;color:var(--gl);margin-bottom:12px">Drag to reorder</p><ul class="pl" id="packList"></ul><button class="addbtn" id="addPackBtn">+ Add Item</button></div>'+
   '<div class="tp" id="tInfo"><div id="infoC"></div><button class="addbtn" id="addInfoBtn">+ Add Section</button></div>'+
   '<div class="tp" id="tDocs"><p style="font-size:12px;color:var(--gray);margin-bottom:16px">Upload PDFs or add links.</p><div id="docsC"></div>'+
   '<div style="display:flex;gap:7px;margin-top:7px"><button class="addbtn" id="addDocUpBtn" style="flex:1">+ Upload PDF</button><button class="addbtn" id="addDocLinkBtn" style="flex:1">+ Add Link</button></div></div>'+
-  '<div class="tp" id="tCity"><p style="font-size:12px;color:var(--gray);line-height:1.7;margin-bottom:16px">Upload a city guide PDF.</p>'+
-  '<div id="cityPdfPrev"></div><div class="uz" id="cityPdfUpload"><input type="file" accept="application/pdf" id="cityPdfInput"/><p>Click or drag to upload city guide PDF</p></div></div>'+
+  '<div class="tp" id="tCity"><div id="cityC"></div><button class="addbtn" id="addCityBtn">+ Add City</button></div>'+
+  '<div class="tp" id="tShare"><p style="font-size:13px;color:var(--gray);line-height:1.7;margin-bottom:18px">Share this direct link with travelers.</p>'+
+  '<div class="fg"><label class="fl">Traveler Link</label><div class="lkbox"><input type="text" id="shareLink" readonly/><button class="lkcopy" id="copyLinkBtn">Copy</button></div></div>'+
+  '<div class="fg" style="margin-top:18px"><label class="fl">Trip Code</label><p id="shareCode" style="font-size:18px;color:var(--purple);letter-spacing:.2em;font-weight:300;margin-top:5px"></p></div></div>'+
   '</div>'+
   '<div class="mf"><div style="display:flex;gap:8px"><button class="bg" id="edCancelBtn">Cancel</button><button class="bd" id="edDeleteBtn" style="display:none">Delete Trip</button></div>'+
   '<div style="display:flex;gap:8px;align-items:center"><span id="saveStatus" style="font-size:11px;color:var(--gl);font-style:italic"></span>'+
-  '<button class="bp" id="saveTripBtn" style="width:auto;padding:12px 32px">Save Trip</button></div></div>'+
-  '</div></div>';
-}
-
-// ONE PAGER EDITOR
-function getOnePagerEditorHTML(){
-  return '<div class="mo" id="opEditorModal">'+
-  '<div class="md">'+
-  '<div class="mh"><h2 id="opEdTitle">New One Pager</h2><button class="mcl" id="opEdCloseBtn">&times;</button></div>'+
-  '<div class="mb">'+
-  '<div class="fr">'+
-  '<div class="fg"><label class="fl">Destination Name *</label><input class="fi" id="opName" placeholder="e.g. Brussels &amp; Antwerp, Belgium"/></div>'+
-  '<div class="fg"><label class="fl">Code *</label><input class="fi" id="opCode" placeholder="e.g. belgium"/></div>'+
-  '</div>'+
-  '<div class="fg"><label class="fl">Dates / Duration</label><input class="fi" id="opDates" placeholder="e.g. October 21-26, 2024 (5 nights)"/></div>'+
-  '<div class="fg"><label class="fl">Intro Paragraph</label><textarea class="fta" id="opIntro" placeholder="A short description of the destination and experience..." style="min-height:100px"></textarea></div>'+
-  '<div style="border-top:1px solid var(--b);margin:18px 0 18px"></div>'+
-  '<p style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);margin-bottom:16px">Photos</p>'+
-  '<div class="op-img-grid" id="opImgGrid"></div>'+
-  '<div class="uz" id="opImgUpload" style="margin-bottom:22px"><input type="file" accept="image/*" multiple id="opImgInput"/><p>+ Add Photos (click or drag, multiple allowed)</p></div>'+
-  '<div style="border-top:1px solid var(--b);margin:18px 0 18px"></div>'+
-  '<p style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gray);margin-bottom:16px">Highlights</p>'+
-  '<div id="opBulletList"></div>'+
-  '<button class="addbtn" id="addBulletBtn">+ Add Highlight</button>'+
-  '<div style="border-top:1px solid var(--b);margin:22px 0 18px"></div>'+
-  '<div class="fg"><label class="fl">Footer Note</label><input class="fi" id="opFooterNote" placeholder="Upon confirmation of the trip, Liaisons will carry out in-depth research..."/></div>'+
-  '</div>'+
-  '<div class="mf"><div style="display:flex;gap:8px"><button class="bg" id="opEdCancelBtn">Cancel</button><button class="bd" id="opEdDeleteBtn" style="display:none">Delete</button></div>'+
-  '<div style="display:flex;gap:8px;align-items:center"><span id="opSaveStatus" style="font-size:11px;color:var(--gl);font-style:italic"></span>'+
-  '<button class="bp" id="saveOpBtn" style="width:auto;padding:12px 32px">Save One Pager</button></div></div>'+
+  '<button class="bp" id="saveTripBtn" style="width:auto;padding:12px 32px">Save to SharePoint</button></div></div>'+
   '</div></div>';
 }
 
 function getTravelerHTML(){
-  return '<div id="sTraveler" style="display:none;background:#fff;min-height:100vh;position:fixed;inset:0;overflow-y:auto;z-index:500">'+
-  '<div class="tvh"><button class="tvback" id="tvBackBtn">&#8592; Back</button>'+
+  return '<div id="sTraveler" style="display:none;background:#fff;min-height:100vh">'+
+  '<div class="tvh"><button class="tvback" id="tvBackBtn">Back</button>'+
   '<img class="tvhbg" id="tvBg" src="" alt="" style="display:none"/>'+
   '<div class="tvhdark"></div>'+
   '<div class="tvhov"><div class="tvclientlogo" id="tvClientLogo"></div>'+
@@ -387,83 +369,82 @@ function getTravelerHTML(){
 }
 
 function getPreviewHTML(){
-  return '<div class="pvo" id="prevOverlay"><div class="pvo-inner">'+
-  '<button class="pvcl" id="closeMobileBtn">&times; Close</button>'+
-  '<div class="pshell"><div class="pscreen"><iframe id="prevFrame" sandbox="allow-scripts allow-same-origin"></iframe></div></div>'+
-  '</div></div>'+
+  return '<div class="pvo" id="prevOverlay"><button class="pvcl" id="closeMobileBtn">x Close</button>'+
+  '<div class="pshell"><div class="pscreen"><iframe id="prevFrame" sandbox="allow-scripts allow-same-origin"></iframe></div></div></div>'+
   '<div id="deskOverlay">'+
   '<div style="background:#fff;border-bottom:1px solid #E0E0E0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'+
   '<div style="background:#F5F5F5;border:1px solid #E0E0E0;padding:4px 16px;font-size:11px;color:#808080;min-width:300px;text-align:center" id="deskUrlBar"></div>'+
-  '<button id="closeDeskBtn" style="background:none;border:1px solid #E0E0E0;padding:6px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:#808080">&times; Close</button></div>'+
+  '<button id="closeDeskBtn" style="background:none;border:1px solid #E0E0E0;padding:6px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-family:inherit;color:#808080">x Close</button></div>'+
   '<iframe id="deskFrame" sandbox="allow-scripts allow-same-origin allow-popups" style="flex:1;border:none;width:100%"></iframe></div>'+
   '<div class="instb" id="instBanner"><p style="font-size:11px">Add LIAISONS TRAVEL to your home screen</p>'+
   '<div class="instbtns"><button id="instNoBtn">Not now</button><button class="yes" id="instYesBtn">Add</button></div></div>';
 }
 
-function getSettingsHTML(){
-  return '<div class="mo" id="settingsModal"><div class="md" style="max-width:500px">'+
-  '<div class="mh"><h2>Settings</h2><button class="mcl" id="settingsCloseBtn">&times;</button></div>'+
-  '<div class="mb">'+
-  '<div class="fg"><label class="fl">Anthropic API Key</label><input class="fi" id="anthropicKey" type="password" placeholder="sk-ant-..."/>'+
-  '<p style="font-size:10px;color:var(--gl);margin-top:5px">For AI PDF itinerary pre-fill.</p></div>'+
-  '<div style="border-top:1px solid var(--b);margin:18px 0"></div>'+
-  '<div class="fg"><label class="fl">GitHub Token</label><input class="fi" id="ghToken" type="password" placeholder="ghp_..."/>'+
-  '<p style="font-size:10px;color:var(--gl);margin-top:5px">Needs repo scope.</p></div>'+
-  '<div class="fg"><label class="fl">GitHub Repo Owner</label><input class="fi" id="ghOwner" placeholder="jessicahz10-hash"/></div>'+
-  '<div class="fg"><label class="fl">GitHub Repo Name</label><input class="fi" id="ghRepo" placeholder="liaisonstravel"/></div>'+
-  '<div class="fg"><label class="fl">Trips Folder</label><input class="fi" id="ghFolder" placeholder="trips"/></div>'+
-  '<div class="fg"><label class="fl">Custom Domain</label><input class="fi" id="ghDomain" placeholder="trips.liaisonstravel.com"/></div>'+
-  '</div>'+
-  '<div class="mf"><div></div><div style="display:flex;gap:8px;align-items:center">'+
-  '<span id="settingsSaveStatus" style="font-size:11px;color:var(--gl);font-style:italic"></span>'+
-  '<button class="bp" id="settingsSaveBtn" style="width:auto;padding:12px 28px">Save Settings</button>'+
-  '</div></div></div></div>';
+// Settings modal
+function openSettings(){
+  var existing=document.getElementById('settingsModal');
+  if(existing)existing.remove();
+  var modal=document.createElement('div');
+  modal.id='settingsModal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:flex;align-items:center;justify-content:center';
+  modal.innerHTML='<div style="background:#fff;width:100%;max-width:480px;margin:18px;padding:28px">'+
+    '<h2 style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:300;margin-bottom:20px">Settings</h2>'+
+    '<label style="display:block;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#808080;margin-bottom:7px">Gemini API Key (for PDF parsing)</label>'+
+    '<input id="geminiKeyInput" type="password" value="'+(GEMINI_KEY||'')+'" placeholder="Paste your Gemini API key..." style="width:100%;border:none;border-bottom:1px solid #E0E0E0;padding:8px 0;font-size:14px;font-weight:300;outline:none;font-family:inherit;margin-bottom:6px"/>'+
+    '<p style="font-size:10px;color:#B0B0B0;margin-bottom:20px">Saved in your browser only. Get your key at aistudio.google.com</p>'+
+    '<div style="display:flex;gap:9px;justify-content:flex-end">'+
+    '<button onclick="document.getElementById(\'settingsModal\').remove()" style="background:transparent;color:#808080;border:1px solid #E0E0E0;padding:7px 16px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit">Cancel</button>'+
+    '<button onclick="saveSettings()" style="background:#5B2D8E;color:#fff;border:none;padding:7px 20px;letter-spacing:.1em;text-transform:uppercase;font-size:10px;cursor:pointer;font-family:inherit">Save</button>'+
+    '</div></div>';
+  document.body.appendChild(modal);
 }
+function saveSettings(){
+  var key=document.getElementById('geminiKeyInput').value.trim();
+  GEMINI_KEY=key;
+  localStorage.setItem('gemini_key',key);
+  document.getElementById('settingsModal').remove();
+  alert('Settings saved!');
+}
+var GRAPH_BASE='https://graph.microsoft.com/v1.0';
+var LIST_URL=GRAPH_BASE+'/sites/'+encodeURIComponent(SP_SITE_URL)+'/lists/'+SP_LIST_ID;
 
-// SHAREPOINT
-function spGet(url){return getToken().then(function(t){return fetch(url,{headers:{Authorization:'Bearer '+t}});}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
-function spPost(url,body){return getToken().then(function(t){return fetch(url,{method:'POST',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify(body)});}).then(function(r){if(!r.ok)return r.text().then(function(e){throw new Error('POST '+r.status+': '+e);});return r.json();});}
-function spPatch(url,body){return getToken().then(function(t){return fetch(url,{method:'PATCH',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json','If-Match':'*'},body:JSON.stringify(body)});}).then(function(r){if(!r.ok)return r.text().then(function(e){throw new Error('PATCH '+r.status+': '+e);});return r;});}
-function spDel(url){return getToken().then(function(t){return fetch(url,{method:'DELETE',headers:{Authorization:'Bearer '+t,'If-Match':'*'}});});}
+function spGet(url){return getToken().then(function(token){return fetch(url,{headers:{Authorization:'Bearer '+token}});}).then(function(r){return r.json();});}
+function spPost(url,body){return getToken().then(function(token){return fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});}).then(function(r){return r.json();});}
+function spPatch(url,body){return getToken().then(function(token){return fetch(url,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json','If-Match':'*'},body:JSON.stringify(body)});});}
+function spDel(url){return getToken().then(function(token){return fetch(url,{method:'DELETE',headers:{Authorization:'Bearer '+token,'If-Match':'*'}});});}
 
-function loadAll(){
+function loadTrips(){
   setSyncStatus('Loading...');
-  var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
+  var url=LIST_URL+'/items?$expand=fields($select=TripCode,TripStatus,TripData,AssignedPM)&$top=500';
   spGet(url).then(function(data){
-    trips={};onePagers={};
+    trips={};
     var items=data.value||[];
     for(var i=0;i<items.length;i++){
-      var item=items[i];var f=item.fields;if(!f)continue;
-      var d={};
-      try{d=JSON.parse(f.TripData||'{}');}catch(e){continue;}
-      d._spId=item.id;
-      var key=d.code||item.id;
-      if(d.docType==='onepager'){onePagers[key]=d;}
-      else{trips[key]=d;}
+      var f=items[i].fields;if(!f)continue;
+      try{var trip=JSON.parse(f.TripData||'{}');trip._spId=items[i].id;trip.status=f.TripStatus||trip.status||'draft';trips[trip.code||items[i].id]=trip;}
+      catch(e){console.error(e);}
     }
     setSyncStatus('Synced '+new Date().toLocaleTimeString());
-    renderDash();renderOnePagers();
-  }).catch(function(e){setSyncStatus('Sync failed: '+e.message);console.error(e);renderDash();renderOnePagers();});
+    renderDash();
+  }).catch(function(e){setSyncStatus('Sync failed');console.error(e);renderDash();});
 }
 
-function spSave(doc){
-  var fields={Title:doc.name||doc.destination||'Untitled',TripCode:doc.code||'',TripData:JSON.stringify(doc)};
-  if(doc._spId){return spPatch(LIST_URL+'/items/'+doc._spId,{fields:fields});}
-  else{return spPost(LIST_URL+'/items',{fields:fields}).then(function(d){if(d&&d.id)doc._spId=d.id;return d;});}
+function spSaveTrip(trip){
+  var fields={Title:trip.name||'',TripCode:trip.code||'',TripStatus:trip.status||'draft',AssignedPM:trip.assignedPM||'',TripData:JSON.stringify(trip)};
+  if(trip._spId){return spPatch(LIST_URL+'/items/'+trip._spId,{fields:fields});}
+  else{return spPost(LIST_URL+'/items',{fields:fields}).then(function(d){if(d.id)trip._spId=d.id;return d;});}
 }
-
-function spDelDoc(doc){if(!doc._spId)return Promise.resolve();return spDel(LIST_URL+'/items/'+doc._spId);}
+function spDelTrip(trip){if(!trip._spId)return Promise.resolve();return spDel(LIST_URL+'/items/'+trip._spId);}
 function setSyncStatus(msg){var el=document.getElementById('syncStatus');if(el)el.textContent=msg;}
 function setSaveStatus(msg){var el=document.getElementById('saveStatus');if(el)el.textContent=msg;}
-function setOpSaveStatus(msg){var el=document.getElementById('opSaveStatus');if(el)el.textContent=msg;}
 
-// TRIPS DASHBOARD
+// DASHBOARD
 function renderDash(){
   var g=document.getElementById('tripsGrid');if(!g)return;g.innerHTML='';
   var keys=Object.keys(trips);
   var filtered=[];
   for(var i=0;i<keys.length;i++){var t=trips[keys[i]];if(currentFilter==='all'||t.status===currentFilter)filtered.push(keys[i]);}
-  if(!filtered.length){var empty=document.createElement('div');empty.style.cssText='grid-column:1/-1;padding:40px;text-align:center;color:var(--gl);font-size:12px;letter-spacing:.1em;text-transform:uppercase';empty.textContent=currentFilter==='all'?'No trips yet.':'No '+currentFilter+' trips.';g.appendChild(empty);}
+  if(!filtered.length){var empty=document.createElement('div');empty.style.cssText='grid-column:1/-1;padding:40px;text-align:center;color:var(--gl);font-size:12px;letter-spacing:.1em;text-transform:uppercase';empty.textContent=currentFilter==='all'?'No trips yet. Create your first trip.':'No '+currentFilter+' trips.';g.appendChild(empty);}
   for(var i=0;i<filtered.length;i++)g.appendChild(makeTripCard(filtered[i],trips[filtered[i]]));
   var nc=document.createElement('div');nc.className='ntc';nc.innerHTML='<div class="plus">+</div><span>New Trip</span>';nc.addEventListener('click',function(){openEditor(null);});g.appendChild(nc);
 }
@@ -482,198 +463,29 @@ function makeTripCard(id,t){
     '<button class="bs" data-action="edit" data-id="'+id+'">Edit</button>'+
     '<button class="bg" data-action="mobile" data-id="'+id+'">Mobile</button>'+
     '<button class="bg" data-action="desktop" data-id="'+id+'">Desktop</button>'+
-    '<button class="bg" data-action="publish" data-id="'+id+'" style="background:var(--purple);color:#fff;border-color:var(--purple)">Publish</button>'+
+    '<button class="bg" data-action="link" data-id="'+id+'">Link</button>'+
     '</div></div>';
   return c;
 }
 
-// ONE PAGERS DASHBOARD
-function renderOnePagers(){
-  var g=document.getElementById('onePagersGrid');if(!g)return;g.innerHTML='';
-  var keys=Object.keys(onePagers);
-  if(!keys.length){var empty=document.createElement('div');empty.style.cssText='grid-column:1/-1;padding:40px;text-align:center;color:var(--gl);font-size:12px;letter-spacing:.1em;text-transform:uppercase';empty.textContent='No one pagers yet.';g.appendChild(empty);}
-  for(var i=0;i<keys.length;i++){g.appendChild(makeOpCard(keys[i],onePagers[keys[i]]));}
-  var nc=document.createElement('div');nc.className='ntc';nc.innerHTML='<div class="plus">+</div><span>New One Pager</span>';nc.addEventListener('click',function(){openOpEditor(null);});g.appendChild(nc);
-}
+document.addEventListener('click',function(e){
+  var btn=e.target.closest('[data-action]');
+  if(!btn)return;
+  var a=btn.getAttribute('data-action'),id=btn.getAttribute('data-id');
+  if(a==='edit')openEditor(id);
+  else if(a==='mobile'){var trip=trips[id];if(trip){document.getElementById('prevFrame').srcdoc=buildHTML(trip);document.getElementById('prevOverlay').classList.add('open');}}
+  else if(a==='desktop'){var trip=trips[id];if(trip){document.getElementById('deskUrlBar').textContent='liaisonstravel.com/trip/'+(trip.code||'');document.getElementById('deskFrame').srcdoc=buildHTML(trip);document.getElementById('deskOverlay').classList.add('open');}}
+  else if(a==='link'){var t=trips[id];if(t){var link=REDIRECT_URI+'#trip/'+t.code;if(navigator.clipboard)navigator.clipboard.writeText(link).then(function(){alert('Copied!\n'+link);});else prompt('Copy:',link);}}
+});
 
-function makeOpCard(id,op){
-  var c=document.createElement('div');c.className='tc';
-  var heroImg=op.images&&op.images.length?op.images[0].data:'';
-  c.innerHTML='<div class="tch">'+(heroImg?'<img src="'+heroImg+'" alt=""/>':'')+
-    '<div class="tco"><h3>'+(op.destination||'Untitled')+'</h3><p>'+(op.dates||'')+'</p></div></div>'+
-    '<div class="tcb"><div class="tmeta"><span class="badge">One Pager</span></div>'+
-    '<div style="font-size:10px;color:var(--gl);letter-spacing:.08em;margin-bottom:8px">Code: '+(op.code||'-')+'</div>'+
-    '<div class="tact">'+
-    '<button class="bs" data-opaction="edit" data-id="'+id+'">Edit</button>'+
-    '<button class="bg" data-opaction="preview" data-id="'+id+'">Preview</button>'+
-    '<button class="bg" data-opaction="publish" data-id="'+id+'" style="background:var(--purple);color:#fff;border-color:var(--purple)">Publish</button>'+
-    '</div></div>';
-  return c;
-}
+document.addEventListener('click',function(e){
+  var fb=e.target.closest('.fbtn');
+  if(!fb||!document.getElementById('filterBar'))return;
+  document.querySelectorAll('.fbtn').forEach(function(b){b.classList.remove('active');});
+  fb.classList.add('active');currentFilter=fb.getAttribute('data-filter');renderDash();
+});
 
-// ONE PAGER EDITOR
-function openOpEditor(id){
-  curOpId=id;
-  var op=id?onePagers[id]:{};
-  document.getElementById('opEdTitle').textContent=id?'Edit One Pager':'New One Pager';
-  document.getElementById('opName').value=op.destination||'';
-  document.getElementById('opCode').value=op.code||'';
-  document.getElementById('opDates').value=op.dates||'';
-  document.getElementById('opIntro').value=op.intro||'';
-  document.getElementById('opFooterNote').value=op.footerNote||'Upon confirmation of the trip, Liaisons will carry out in-depth research on the destination based on the interests of the institution.';
-  document.getElementById('opEdDeleteBtn').style.display=id?'block':'none';
-  opImages=op.images?JSON.parse(JSON.stringify(op.images)):[];
-  opBullets=op.bullets?JSON.parse(JSON.stringify(op.bullets)):[];
-  renderOpImages();
-  renderOpBullets();
-  setOpSaveStatus('');
-  document.getElementById('opEditorModal').classList.add('open');
-}
-
-function closeOpEditor(){
-  document.getElementById('opEditorModal').classList.remove('open');
-}
-
-function renderOpImages(){
-  var g=document.getElementById('opImgGrid');if(!g)return;g.innerHTML='';
-  for(var i=0;i<opImages.length;i++){
-    (function(i){
-      var div=document.createElement('div');div.className='op-img-item';
-      div.innerHTML='<img src="'+opImages[i].data+'" alt=""/>'+
-        '<button class="op-img-remove" data-rmopimg="'+i+'">&times;</button>'+
-        '<input class="fi" placeholder="Caption (optional)" value="'+esc(opImages[i].caption||'')+'" data-opimgcap="'+i+'" style="border-top:1px solid var(--b);border-bottom:none;padding:6px 8px;font-size:11px"/>';
-      g.appendChild(div);
-    })(i);
-  }
-}
-
-function renderOpBullets(){
-  var c=document.getElementById('opBulletList');if(!c)return;c.innerHTML='';
-  for(var i=0;i<opBullets.length;i++){
-    (function(i){
-      var div=document.createElement('div');div.className='bullet-item';
-      div.innerHTML='<span style="color:var(--purple);font-size:16px;flex-shrink:0">&#8226;</span>'+
-        '<textarea data-opbullet="'+i+'" placeholder="Highlight item...">'+esc(opBullets[i])+'</textarea>'+
-        '<button class="rb" data-rmopbullet="'+i+'">&times;</button>';
-      c.appendChild(div);
-    })(i);
-  }
-}
-
-function saveOnePager(){
-  var destination=document.getElementById('opName').value.trim();
-  var code=document.getElementById('opCode').value.trim().toLowerCase().replace(/\s+/g,'-');
-  if(!destination||!code){alert('Destination name and code are required.');return;}
-  var op={
-    docType:'onepager',
-    destination:destination,
-    code:code,
-    dates:document.getElementById('opDates').value,
-    intro:document.getElementById('opIntro').value,
-    footerNote:document.getElementById('opFooterNote').value,
-    images:opImages,
-    bullets:opBullets
-  };
-  var existingKey=curOpId;
-  if(existingKey&&onePagers[existingKey]&&onePagers[existingKey]._spId)op._spId=onePagers[existingKey]._spId;
-  if(existingKey&&existingKey!==code&&onePagers[existingKey])delete onePagers[existingKey];
-  onePagers[code]=op;curOpId=code;
-  setOpSaveStatus('Saving...');
-  document.getElementById('saveOpBtn').disabled=true;
-  spSave(op).then(function(){
-    setOpSaveStatus('Saved!');setSyncStatus('Synced '+new Date().toLocaleTimeString());
-    setTimeout(function(){setOpSaveStatus('');},3000);
-    document.getElementById('saveOpBtn').disabled=false;
-    renderOnePagers();
-  }).catch(function(e){setOpSaveStatus('Save failed: '+e.message);document.getElementById('saveOpBtn').disabled=false;console.error(e);});
-}
-
-function deleteOnePager(){
-  if(!curOpId||!confirm('Delete this one pager?'))return;
-  var op=onePagers[curOpId];delete onePagers[curOpId];closeOpEditor();renderOnePagers();
-  if(op)spDelDoc(op).catch(function(e){console.error(e);});
-}
-
-function publishOnePager(id){
-  var op=onePagers[id];if(!op){alert('Not found.');return;}
-  var token=localStorage.getItem('gh_token');
-  if(!token){alert('Add your GitHub token in Settings first.');openSettings();return;}
-  var owner=localStorage.getItem('gh_owner')||'jessicahz10-hash';
-  var repo=localStorage.getItem('gh_repo')||'liaisonstravel';
-  var domain=localStorage.getItem('gh_domain')||'trips.liaisonstravel.com';
-  var code=op.code||'destination';
-  var filename='destinations/'+code+'.html';
-  var html;
-  try{html=buildOnePagerHTML(op);}catch(e){alert('Error building page: '+e.message);console.error(e);return;}
-  var b64;
-  try{b64=btoa(unescape(encodeURIComponent(html)));}catch(e){alert('Page too large to publish ('+Math.round(html.length/1024)+'KB). Try reducing image sizes.');console.error(e);return;}
-  var apiUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+filename;
-  setSyncStatus('Publishing... ('+Math.round(html.length/1024)+'KB)');
-  fetch(apiUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})
-  .then(function(r){return r.ok?r.json():null;})
-  .then(function(existing){
-    var body={message:'Publish one pager: '+code,content:b64};
-    if(existing&&existing.sha)body.sha=existing.sha;
-    return fetch(apiUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify(body)});
-  })
-  .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error(t);});return r.json();})
-  .then(function(){
-    var link='https://'+domain+'/destinations/'+code+'.html';
-    setSyncStatus('Published!');setTimeout(function(){setSyncStatus('');},3000);
-    if(navigator.clipboard){navigator.clipboard.writeText(link).then(function(){alert('✅ Published!\n\nLink copied:\n'+link);});}
-    else{prompt('Published! Link:',link);}
-  })
-  .catch(function(e){setSyncStatus('Publish failed');console.error(e);alert('Publish failed: '+e.message);});
-}
-
-// BUILD ONE PAGER HTML
-function buildOnePagerHTML(op){
-  var imgsHTML='';
-  if(op.images&&op.images.length){
-    if(op.images.length===1){
-      imgsHTML='<div style="margin:32px 0"><img src="'+op.images[0].data+'" style="width:100%;max-height:480px;object-fit:cover;display:block" alt="'+(op.images[0].caption||'')+'"/>'+(op.images[0].caption?'<p style="font-size:11px;color:#808080;margin-top:6px;font-style:italic">'+op.images[0].caption+'</p>':'')+' </div>';
-    } else if(op.images.length<=3){
-      imgsHTML='<div style="display:grid;grid-template-columns:repeat('+op.images.length+',1fr);gap:8px;margin:32px 0">';
-      for(var i=0;i<op.images.length;i++){imgsHTML+='<div><img src="'+op.images[i].data+'" style="width:100%;height:280px;object-fit:cover;display:block" alt="'+(op.images[i].caption||'')+'"/>'+(op.images[i].caption?'<p style="font-size:10px;color:#808080;margin-top:4px;font-style:italic">'+op.images[i].caption+'</p>':'')+'</div>';}
-      imgsHTML+='</div>';
-    } else {
-      imgsHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin:32px 0">';
-      for(var i=0;i<op.images.length;i++){imgsHTML+='<div><img src="'+op.images[i].data+'" style="width:100%;height:240px;object-fit:cover;display:block" alt="'+(op.images[i].caption||'')+'"/>'+(op.images[i].caption?'<p style="font-size:10px;color:#808080;margin-top:4px;font-style:italic">'+op.images[i].caption+'</p>':'')+'</div>';}
-      imgsHTML+='</div>';
-    }
-  }
-  var bulletsHTML='';
-  if(op.bullets&&op.bullets.length){
-    bulletsHTML='<div style="margin:28px 0"><p style="font-size:11px;font-weight:600;margin-bottom:14px;letter-spacing:.05em">Highlights:</p>';
-    for(var i=0;i<op.bullets.length;i++){if(op.bullets[i].trim())bulletsHTML+='<p style="font-size:14px;line-height:1.7;margin-bottom:8px;padding-left:16px;text-indent:-16px">&bull;&nbsp;'+op.bullets[i]+'</p>';}
-    bulletsHTML+='</div>';
-  }
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>'+
-  '<title>'+(op.destination||'Destination')+' — LIAISONS TRAVEL</title>'+
-  '<style>@font-face{font-family:HelveticaThinExt;src:url("data:font/otf;base64,T1RUTwANAIAAAwBQQkFTRT9iT7oAAFcsAAAANENGRiBChebyAAAMdAAAPu9EU0lHRtxh6wAAV2AAABPsR1BPUwB0BtAAAFHUAAAFVkdTVUKVc68ZAABPWAAAAnpPUy8yeVoOhAAAAUAAAABgY21hcJy38pgAAAiwAAADpGhlYWTYzmM6AAAA3AAAADZoaGVhB3oDygAAARQAAAAkaG10eCRtHBUAAEtkAAAD9G1heHAA/VAAAAABOAAAAAZuYW1lBqbu2QAAAaAAAAcPcG9zdP+4ADIAAAxUAAAAIAABAAAAAQwIz/1dsF8PPPUAAwPoAAAAALrpCbwAAAAAuukJvP9b/yQEigO2AAAAAwACAAAAAAAAAAEAAALK/uIAyASP/1v/WwSKAAEAAAAAAAAAAAAAAAAAAAD9AABQAAD9AAAAAgIqAPoABwAEAooCWAAAAEsCigJYAAABXgAyATYAAAILBAQCAgICAgSAAACvQAAgSgAAAAAAAAAAQURCRQAAACD7AgLK/uIAyAO2ANwAAAABAAAAAAIFAsoAIAAgAAQAAAAZATIAAQAAAAAAAABIAAAAAQAAAAAAAQAVAEgAAQAAAAAAAgAQAF0AAQAAAAAAAwAiAG0AAQAAAAAABAAmAI8AAQAAAAAABQA4ALUAAQAAAAAABgAXAO0AAQAAAAAABwCeAQQAAQAAAAAACQAOAaIAAQAAAAAACwAZAbAAAQAAAAAADgAkAckAAQAAAAAAEgAcAe0AAwABBAkAAACQAgkAAwABBAkAAQA4ApkAAwABBAkAAgAOAtEAAwABBAkAAwBEAt8AAwABBAkABAAuAyMAAwABBAkABQBwA1EAAwABBAkABgAuAyMAAwABBAkABwE8A8EAAwABBAkACQAcBP0AAwABBAkACwAyBRkAAwABBAkADgBIBUsAAwABBAkAEAAqBZMAAwABBAkAEQAgBb1Db3B5cmlnaHQgqSAxOTkwLCAyMDAyIEFkb2JlIFN5c3RlbXMgSW5jb3Jwb3JhdGVkLiAgQWxsIFJpZ2h0cyBSZXNlcnZlZC5IZWx2ZXRpY2EgTmV1ZSBMVCBTdGQzMyBUaGluIEV4dGVuZGVkMS4wNDc7QURCRTtIZWx2ZXRpY2FOZXVlTFRTdGQtVGhFeEhlbHZldGljYSBOZXVlIExUIFN0ZCAzMyBUaGluIEV4dGVuZGVkVmVyc2lvbiAxLjA0NztQUyAwMDEuMDAxO0NvcmUgMS4wLjM4O21ha2VvdGYubGliMS42LjU5NjBIZWx2ZXRpY2FOZXVlTFRTdGQtVGhFeEhlbHZldGljYSBpcyBhIFRyYWRlbWFyayBvZiBIZWlkZWxiZXJnZXIgRHJ1Y2ttYXNjaGluZW4gQUcgZXhjbHVzaXZlbHkgbGljZW5zZWQgdGhyb3VnaCBMaW5vdHlwZSBMaWJyYXJ5IEdtYkgsIGFuZCBtYXkgYmUgcmVnaXN0ZXJlZCBpbiBjZXJ0YWluIGp1cmlzZGljdGlvbnMuTGlub3R5cGUgU3RhZmZodHRwOi8vd3d3LmFkb2JlLmNvbS90eXBlaHR0cDovL3d3dy5hZG9iZS5jb20vdHlwZS9sZWdhbC5odG1sSGVsdmV0aWNhTmV1ZUxUIFN0ZCBUaGluIEV4dABDAG8AcAB5AHIAaQBnAGgAdAAgAKkAIAAxADkAOQAwACwAIAAyADAAMAAyACAAQQBkAG8AYgBlACAAUwB5AHMAdABlAG0AcwAgAEkAbgBjAG8AcgBwAG8AcgBhAHQAZQBkAC4AIAAgAEEAbABsACAAUgBpAGcAaAB0AHMAIABSAGUAcwBlAHIAdgBlAGQALgBIAGUAbAB2AGUAdABpAGMAYQBOAGUAdQBlAEwAVAAgAFMAdABkACAAVABoAGkAbgAgAEUAeAB0AFIAZQBnAHUAbABhAHIAMQAuADAANAA3ADsAQQBEAEIARQA7AEgAZQBsAHYAZQB0AGkAYwBhAE4AZQB1AGUATABUAFMAdABkAC0AVABoAEUAeABIAGUAbAB2AGUAdABpAGMAYQBOAGUAdQBlAEwAVABTAHQAZAAtAFQAaABFAHgAVgBlAHIAcwBpAG8AbgAgADEALgAwADQANwA7AFAAUwAgADAAMAAxAC4AMAAwADEAOwBDAG8AcgBlACAAMQAuADAALgAzADgAOwBtAGEAawBlAG8AdABmAC4AbABpAGIAMQAuADYALgA1ADkANgAwAEgAZQBsAHYAZQB0AGkAYwBhACAAaQBzACAAYQAgAFQAcgBhAGQAZQBtAGEAcgBrACAAbwBmACAASABlAGkAZABlAGwAYgBlAHIAZwBlAHIAIABEAHIAdQBjAGsAbQBhAHMAYwBoAGkAbgBlAG4AIABBAEcA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dGVtcyBJbmNvcnBvcmF0ZWQuIEFsbCBSaWdodHMgUmVzZXJ2ZWQuIEhlbHZldGljYSBpcyBhIFRyYWRlbWFyayBvZiBIZWlkZWxiZXJnZXIgRHJ1Y2ttYXNjaGluZW4gQUcgZXhjbHVzaXZlbHkgbGljZW5zZWQgdGhyb3VnaCBMaW5vdHlwZSBMaWJyYXJ5IEdtYkgsIGFuZCBtYXkgYmUgcmVnaXN0ZXJlZCBpbiBjZXJ0YWluIGp1cmlzZGljdGlvbnMuIFRoZSBkaWdpdGFsbHkgZW5jb2RlZCBtYWNoaW5lIHJlYWRhYmxlIHNvZnR3YXJlIGZvciBwcm9kdWNpbmcgdGhlCiBUeXBlZmFjZXMgbGljZW5zZWQgdG8geW91IGlzIGNvcHlyaWdodGVkIChjKSAxOTkwLCAyMDAyIEFkb2JlIFN5c3RlbXMuCiBBbGwgUmlnaHRzIFJlc2VydmVkLiBUaGlzIHNvZnR3YXJlIGlzIHRoZSBwcm9wZXJ0eSBvZiBBZG9iZSBTeXN0ZW1zCiBJbmNvcnBvcmF0ZWQgYW5kIGl0cyBsaWNlbnNvcnMsIGFuZCBtYXkgbm90IGJlIHJlcHJvZHVjZWQsIHVzZWQsCiBkaXNwbGF5ZWQsIG1vZGlmaWVkLCBkaXNjbG9zZWQgb3IgdHJhbnNmZXJyZWQgd2l0aG91dCB0aGUgZXhwcmVzcwogd3JpdHRlbiBhcHByb3ZhbCBvZiBBZG9iZS4KIAogVGhlIGRpZ2l0YWxseSBlbmNvZGVkIG1hY2hpbmUgcmVhZGFibGUgb3V0bGluZSBkYXRhIGZvciBwcm9kdWNpbmcgdGhlIFR5cGVmYWNlcyAKIHByb3ZpZGVkIGFzIHBhcnQgb2YgeW91ciBsYXNlciBwcmludGVyIGlzIGNvcHlyaWdodGVkIChjKSAxOTgxLCAyMDAyIEhlaWRlbGJlcmdlciBEcnVja21hc2NoaW5lbiBBRy4gCiBBbGwgcmlnaHRzIHJlc2VydmVkLiBUaGlzIGRhdGEgaXMgdGhlIHByb3BlcnR5IG9mIEhlaWRlbGJlcmdlciBEcnVja21hc2NoaW5lbiBBRywgCiBhbmQgbWF5IG5vdCBiZSByZXByb2R1Y2VkLCB1c2VkLCBkaXNwbGF5ZWQsIG1vZGlmaWVkLCBkaXNjbG9z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") format("opentype")}@font-face{font-family:Avenir;src:url("https://trips.liaisonstravel.com/Avenir.ttc") format("truetype")}*{margin:0;padding:0;box-sizing:border-box}body{font-family:Avenir,Helvetica Neue,Arial,sans-serif;background:#fff;color:#2D2D2D;max-width:860px;margin:0 auto;padding:48px 32px}'+
-  '@media(max-width:600px){body{padding:28px 18px}}'+
-  '@media print{.no-print{display:none!important}body{padding:16px 24px;font-size:13px}@page{margin:1.2cm;size:A4}@page{margin-top:1cm;margin-bottom:1cm;margin-left:1.5cm;margin-right:1.5cm}img{max-width:100%;page-break-inside:avoid}div{page-break-inside:avoid}.liaisons-footer{page-break-before:avoid}.footer-note{page-break-before:avoid}h1{page-break-after:avoid}}'+
-  '.header{display:flex;justify-content:flex-end;margin-bottom:36px}'+
-  '.dest{font-size:clamp(24px,5vw,42px);font-weight:normal;letter-spacing:.08em;color:#5B2D8E;text-transform:uppercase;margin-bottom:6px;font-family:HelveticaThinExt,Helvetica Neue,sans-serif}'+
-  '.dates{font-size:18px;font-weight:300;color:#2D2D2D;margin-bottom:20px;font-family:Avenir,Helvetica Neue,sans-serif}'+
-  '.intro{font-size:15px;line-height:1.8;color:#444;margin-bottom:8px;max-width:720px;font-family:Avenir,Helvetica Neue,sans-serif}'+
-  '.footer-note{font-size:13px;font-weight:600;text-align:center;margin-top:40px;padding-top:28px;border-top:1px solid #E0E0E0;color:#2D2D2D}'+
-  '.liaisons-footer{text-align:center;margin-top:36px;padding-top:24px;border-top:1px solid #E0E0E0}'+
-  '</style></head><body>'+
-  '<div class="header"><img src="'+LOGO_URL+'" style="height:20px;width:auto" alt="LIAISONS TRAVEL"/></div>'+
-  '<h1 class="dest">'+(op.destination||'')+'</h1>'+
-  (op.dates?'<p class="dates">'+(op.dates||'')+'</p>':'')+
-  (op.intro?'<p class="intro">'+(op.intro||'').replace(/\n/g,'<br/>')+'</p>':'')+
-  imgsHTML+
-  bulletsHTML+
-  (op.footerNote?'<p class="footer-note"><em>'+op.footerNote+'</em></p>':'')+
-  '<div class="liaisons-footer"><img src="'+LOGO_URL+'" style="height:16px;width:auto;display:block;margin:0 auto 8px" alt="LIAISONS TRAVEL"/>'+
-  '<p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0">ART &middot; TRAVEL &middot; CULTURE &middot; LIFESTYLE</p></div>'+
-  '<div class="no-print" style="text-align:center;margin-top:32px;padding-bottom:40px"><button onclick="triggerPrint()" style="background:#5B2D8E;color:#fff;border:none;padding:12px 32px;font-size:11px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;font-family:Helvetica Neue,Helvetica,Arial,sans-serif">&#128196; Download as PDF</button><p style="font-size:10px;color:#B0B0B0;margin-top:10px;letter-spacing:.05em">In the print dialog: set Margins to None and uncheck Headers &amp; Footers</p></div>'+
-  '<script>function triggerPrint(){var style=document.createElement("style");style.textContent="@page{margin:1cm 1.5cm}";document.head.appendChild(style);window.print();}<\/script></body></html>';
-}
-
-// TRIP EDITOR (existing)
+// EDITOR
 function openEditor(id){
   curId=id;var t=id?trips[id]:{};
   document.getElementById('edTitle').textContent=id?'Edit Trip':'New Trip';
@@ -686,143 +498,102 @@ function openEditor(id){
   document.getElementById('fClient').value=t.clientName||'';
   document.getElementById('fWelcome').value=t.welcome||'';
   document.getElementById('fPhone').value=t.contactPhone||'';
+  document.getElementById('fTripPass').value=t.tripPassword||'';
+  document.getElementById('fLogoPos').value=t.logoPosition||'center';
   document.getElementById('edDeleteBtn').style.display=id?'block':'none';
   eHero=t.heroImg||null;eLogo=t.clientLogo||null;
-  eBoxStyle=t.boxStyle||'frosted-white';eBoxOpacity=t.boxOpacity||'0.15';eBrandColor=t.brandColor||'#5B2D8E';
-  var bsEl=document.getElementById('fBoxStyle');if(bsEl)bsEl.value=eBoxStyle;
-  var boEl=document.getElementById('fBoxOpacity');if(boEl)boEl.value=eBoxOpacity;
-  var bcEl=document.getElementById('fBrandColor');if(bcEl)bcEl.value=eBrandColor;
   showImgPrev('heroPrev',eHero);showImgPrev('logoPrev',eLogo);
   eDays=t.days?JSON.parse(JSON.stringify(t.days)):[];
   ePack=t.packing?JSON.parse(JSON.stringify(t.packing)):[];
   eInfo=t.info?JSON.parse(JSON.stringify(t.info)):[];
   eDocs=t.docs?JSON.parse(JSON.stringify(t.docs)):[];
   eCity=t.cityGuide?JSON.parse(JSON.stringify(t.cityGuide)):[];
-  eCityPdf=t.cityPdf||null;
-  showCityPdfPrev();
   renderDays();renderPack();renderInfo();renderDocs();renderCity();
-  setSaveStatus('');switchTab('tSetup');
-  hasUnsavedChanges=false;clearTimeout(autoSaveTimer);
+  document.getElementById('aiSt').textContent='';
+  document.getElementById('pasteArea').style.display='none';
+  setSaveStatus('');
+  updateShare(t.code||'');
+  switchTab('tSetup');
   document.getElementById('editorModal').classList.add('open');
 }
-
-function closeEditor(){
-  if(hasUnsavedChanges){if(!confirm('You have unsaved changes. Close anyway?'))return;}
-  clearTimeout(autoSaveTimer);hasUnsavedChanges=false;
-  document.getElementById('editorModal').classList.remove('open');
-}
-
-function markDirty(){
-  hasUnsavedChanges=true;setSaveStatus('Unsaved changes...');
-  clearTimeout(autoSaveTimer);
-  autoSaveTimer=setTimeout(function(){
-    var name=document.getElementById('fName').value.trim();
-    var code=document.getElementById('fCode').value.trim();
-    if(name&&code)saveTrip(true);
-  },5000);
-}
-
+function closeEditor(){document.getElementById('editorModal').classList.remove('open');}
 function switchTab(id){
   document.querySelectorAll('.tp').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.ftab').forEach(function(t){t.classList.remove('active');if(t.getAttribute('data-tab')===id)t.classList.add('active');});
-  var panel=document.getElementById(id);if(panel)panel.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  if(id==='tShare')updateShare(document.getElementById('fCode').value.trim());
 }
-
 function updateShare(code){
-  var sl=document.getElementById('shareLink');if(sl)sl.value=REDIRECT_URI+'#trip/'+(code||'');
-  var sc=document.getElementById('shareCode');if(sc)sc.textContent=code||'(save trip first)';
+  document.getElementById('shareLink').value=REDIRECT_URI+'#trip/'+(code||'');
+  document.getElementById('shareCode').textContent=code||'(save trip first)';
 }
-
-function saveTrip(auto){
+function saveTrip(){
   var name=document.getElementById('fName').value.trim();
   var code=document.getElementById('fCode').value.trim().toLowerCase().replace(/\s+/g,'-');
-  if(!name||!code){if(!auto)alert('Trip Name and Trip Code are required.');return;}
-  if(!curId){var keys=Object.keys(trips);for(var i=0;i<keys.length;i++){if(trips[keys[i]].code===code){if(!confirm('A trip with code "'+code+'" already exists. Overwrite it?'))return;break;}}}
-  function gv(id,def){var el=document.getElementById(id);return el?el.value:(def||'');}
-  var trip={
-    name:name,code:code,
-    destinations:gv('fDest'),dates:gv('fDates'),status:gv('fStatus','draft'),assignedPM:gv('fPM'),
-    heroImg:eHero,
-    boxStyle:(function(){var el=document.getElementById('fBoxStyle');if(el)eBoxStyle=el.value;return eBoxStyle;})(),
-    boxOpacity:(function(){var el=document.getElementById('fBoxOpacity');if(el)eBoxOpacity=el.value;return eBoxOpacity;})(),
-    brandColor:(function(){var el=document.getElementById('fBrandColor');if(el)eBrandColor=el.value;return eBrandColor;})(),
-    clientName:gv('fClient'),clientLogo:eLogo,welcome:gv('fWelcome'),contactPhone:gv('fPhone'),
-    days:eDays,packing:ePack,info:eInfo,docs:eDocs,cityGuide:eCity,cityPdf:eCityPdf
-  };
-  var existingKey=curId;
-  if(existingKey&&trips[existingKey]&&trips[existingKey]._spId)trip._spId=trips[existingKey]._spId;
-  if(existingKey&&existingKey!==code&&trips[existingKey])delete trips[existingKey];
-  trips[code]=trip;curId=code;
-  setSaveStatus('Saving...');document.getElementById('saveTripBtn').disabled=true;
-  spSave(trip).then(function(){
-    hasUnsavedChanges=false;clearTimeout(autoSaveTimer);
-    setSaveStatus(auto?'Auto-saved ✓':'Saved!');setSyncStatus('Synced '+new Date().toLocaleTimeString());
-    setTimeout(function(){setSaveStatus('');},3000);
-    document.getElementById('saveTripBtn').disabled=false;renderDash();
-  }).catch(function(e){setSaveStatus('Save failed: '+e.message);document.getElementById('saveTripBtn').disabled=false;console.error(e);});
+  if(!name||!code){alert('Name and code required.');return;}
+  var id=curId||('t'+Date.now());
+  var trip={name:name,code:code,destinations:document.getElementById('fDest').value,dates:document.getElementById('fDates').value,status:document.getElementById('fStatus').value,assignedPM:document.getElementById('fPM').value,heroImg:eHero,clientName:document.getElementById('fClient').value,clientLogo:eLogo,logoPosition:document.getElementById('fLogoPos').value,welcome:document.getElementById('fWelcome').value,contactPhone:document.getElementById('fPhone').value,tripPassword:document.getElementById('fTripPass').value,days:eDays,packing:ePack,info:eInfo,docs:eDocs,cityGuide:eCity};
+  if(curId&&trips[curId])trip._spId=trips[curId]._spId;
+  trips[id]=trip;
+  setSaveStatus('Saving...');
+  document.getElementById('saveTripBtn').disabled=true;
+  spSaveTrip(trip).then(function(){setSaveStatus('Saved!');setSyncStatus('Synced '+new Date().toLocaleTimeString());setTimeout(function(){setSaveStatus('');},3000);document.getElementById('saveTripBtn').disabled=false;renderDash();})
+  .catch(function(e){setSaveStatus('Save failed');document.getElementById('saveTripBtn').disabled=false;console.error(e);});
 }
-
 function deleteTrip(){
   if(!curId||!confirm('Delete this trip?'))return;
   var trip=trips[curId];delete trips[curId];closeEditor();renderDash();
-  if(trip)spDelDoc(trip).catch(function(e){console.error(e);});
+  if(trip)spDelTrip(trip).catch(function(e){console.error(e);});
 }
 
 function showImgPrev(cid,data){var c=document.getElementById(cid);if(!c)return;c.innerHTML=data?'<div class="uprev"><img src="'+data+'" alt=""/><button class="uclear" data-clear="'+cid+'">Remove</button></div>':'';}
 function handleImgFile(file,type){var r=new FileReader();r.onload=function(ev){if(type==='hero'){eHero=ev.target.result;showImgPrev('heroPrev',eHero);}else{eLogo=ev.target.result;showImgPrev('logoPrev',eLogo);}};r.readAsDataURL(file);}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-clear]');if(b){var cid=b.getAttribute('data-clear');if(cid==='heroPrev')eHero=null;else eLogo=null;showImgPrev(cid,null);}});
 
-document.addEventListener('click',function(e){
-  var b=e.target.closest('[data-clear]');if(b){var cid=b.getAttribute('data-clear');if(cid==='heroPrev')eHero=null;else eLogo=null;showImgPrev(cid,null);}
-  var rmopimg=e.target.closest('[data-rmopimg]');if(rmopimg){opImages.splice(parseInt(rmopimg.getAttribute('data-rmopimg')),1);renderOpImages();}
-  var rmopbullet=e.target.closest('[data-rmopbullet]');if(rmopbullet){opBullets.splice(parseInt(rmopbullet.getAttribute('data-rmopbullet')),1);renderOpBullets();}
-});
-
-document.addEventListener('input',function(e){
-  var cap=e.target.getAttribute('data-opimgcap');if(cap!==null){opImages[parseInt(cap)].caption=e.target.value;}
-  var bul=e.target.getAttribute('data-opbullet');if(bul!==null){opBullets[parseInt(bul)]=e.target.value;}
-});
-
-document.addEventListener('click',function(e){
-  var btn=e.target.closest('[data-action]');
-  if(!btn)return;
-  var a=btn.getAttribute('data-action'),id=btn.getAttribute('data-id');
-  if(a==='edit'){openEditor(id);}
-  else if(a==='mobile'){var trip=trips[id];if(trip){document.getElementById('prevFrame').srcdoc=buildTravelerHTML(trip);document.getElementById('prevOverlay').classList.add('open');}}
-  else if(a==='desktop'){var trip=trips[id];if(trip){document.getElementById('deskUrlBar').textContent='liaisonstravel.com/trip/'+(trip.code||'');document.getElementById('deskFrame').srcdoc=buildTravelerHTML(trip);document.getElementById('deskOverlay').classList.add('open');}}
-  else if(a==='publish'){publishTrip(id);}
-});
-
-document.addEventListener('click',function(e){
-  var btn=e.target.closest('[data-opaction]');
-  if(!btn)return;
-  var a=btn.getAttribute('data-opaction'),id=btn.getAttribute('data-id');
-  if(a==='edit'){openOpEditor(id);}
-  else if(a==='preview'){var op=onePagers[id];if(op){document.getElementById('deskUrlBar').textContent='destinations/'+(op.code||'');document.getElementById('deskFrame').srcdoc=buildOnePagerHTML(op);document.getElementById('deskOverlay').classList.add('open');}}
-  else if(a==='publish'){publishOnePager(id);}
-});
-
-document.addEventListener('click',function(e){
-  var fb=e.target.closest('.fbtn');
-  if(!fb||!document.getElementById('filterBar'))return;
-  document.querySelectorAll('.fbtn').forEach(function(b){b.classList.remove('active');});
-  fb.classList.add('active');currentFilter=fb.getAttribute('data-filter');renderDash();
-});
+function setSt(m){var el=document.getElementById('aiSt');if(el)el.textContent=m;}
+function fileToB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(f);});}
+function handlePDF(f){if(!f)return;setSt('Reading PDF...');fileToB64(f).then(function(b64){return callAI(null,b64);}).catch(function(){setSt('Could not read PDF.');});}
+function runAIText(){var text=document.getElementById('pasteText').value.trim();if(!text){alert('Paste text first.');return;}document.getElementById('pasteArea').style.display='none';callAI(text,null);}
+function callAI(text,pdfB64){
+  setSt('Analyzing...');
+  var prompt='Return ONLY valid JSON, no markdown. Structure: {"tripName":"","destinations":"","dates":"","days":[{"title":"","date":"","activities":[{"time":"","title":"","desc":"","mapQuery":"venue+city","photo":null}]}]} Extract every activity, meal, transfer. Use specific venue+city for mapQuery.\n\n';
+  var parts=[];
+  if(pdfB64){
+    parts.push({inlineData:{mimeType:'application/pdf',data:pdfB64}});
+    parts.push({text:prompt+'Parse this PDF itinerary and return JSON.'});
+  } else {
+    parts.push({text:prompt+'Parse this itinerary:\n\n'+text});
+  }
+  return fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+GEMINI_KEY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:parts}]})
+  })
+  .then(function(r){return r.json();})
+  .then(function(data){
+    var raw='';
+    try{raw=data.candidates[0].content.parts[0].text;}catch(e){throw new Error('No response from Gemini');}
+    raw=raw.replace(/```json/g,'').replace(/```/g,'').trim();
+    var p=JSON.parse(raw);
+    if(p.tripName&&!document.getElementById('fName').value)document.getElementById('fName').value=p.tripName;
+    if(p.destinations&&!document.getElementById('fDest').value)document.getElementById('fDest').value=p.destinations;
+    if(p.dates&&!document.getElementById('fDates').value)document.getElementById('fDates').value=p.dates;
+    if(p.days&&p.days.length){eDays=eDays.concat(p.days);renderDays();switchTab('tItinerary');setSt('Done! '+p.days.length+' days added.');}
+    else setSt('No days found. Try pasting text.');
+  }).catch(function(err){setSt('Error parsing - check your API key.');console.error(err);});
+}
 
 function renderDays(){
   var c=document.getElementById('daysC');if(!c)return;c.innerHTML='';
   for(var di=0;di<eDays.length;di++){
     (function(di){var d=eDays[di];var el=document.createElement('div');el.className='di';
-      el.innerHTML='<div class="dih" data-toggle="'+di+'"><h4>Day '+(di+1)+' - '+(d.title||'Untitled')+'</h4><button class="rb" data-rmday="'+di+'">&times;</button></div>'+
-        '<div class="dib" id="db'+di+'"><div class="fr">'+
-        '<div class="fg"><label class="fl">Title</label><input class="fi" value="'+esc(d.title||'')+'" data-df="'+di+'-title"/></div>'+
-        '<div class="fg"><label class="fl">Date</label><input class="fi" value="'+esc(d.date||'')+'" data-df="'+di+'-date"/></div></div>'+
-        '<label class="fl">Activities</label><div id="ac'+di+'"></div>'+
-        '<button class="addbtn" data-addact="'+di+'">+ Add Activity</button></div>';
-      c.appendChild(el);renderActs(di);
-    })(di);
+    el.innerHTML='<div class="dih" data-toggle="'+di+'"><h4>Day '+(di+1)+' - '+(d.title||'Untitled')+'</h4><button class="rb" data-rmday="'+di+'">x</button></div>'+
+      '<div class="dib" id="db'+di+'"><div class="fr"><div class="fg"><label class="fl">Title</label><input class="fi" value="'+esc(d.title||'')+'" data-df="'+di+'-title"/></div>'+
+      '<div class="fg"><label class="fl">Date</label><input class="fi" value="'+esc(d.date||'')+'" data-df="'+di+'-date"/></div></div>'+
+      '<label class="fl">Activities</label><div id="ac'+di+'"></div><button class="addbtn" data-addact="'+di+'">+ Add Activity</button></div>';
+    c.appendChild(el);renderActs(di);})(di);
   }
 }
-
 document.addEventListener('click',function(e){
   var tog=e.target.closest('[data-toggle]');if(tog){var db=document.getElementById('db'+tog.getAttribute('data-toggle'));if(db)db.classList.toggle('open');return;}
   var rmd=e.target.closest('[data-rmday]');if(rmd){eDays.splice(parseInt(rmd.getAttribute('data-rmday')),1);renderDays();return;}
@@ -831,219 +602,134 @@ document.addEventListener('click',function(e){
   var rmpack=e.target.closest('[data-rmpack]');if(rmpack){ePack.splice(parseInt(rmpack.getAttribute('data-rmpack')),1);renderPack();return;}
   var rminfo=e.target.closest('[data-rminfo]');if(rminfo){eInfo.splice(parseInt(rminfo.getAttribute('data-rminfo')),1);renderInfo();return;}
   var rmdoc=e.target.closest('[data-rmdoc]');if(rmdoc){eDocs.splice(parseInt(rmdoc.getAttribute('data-rmdoc')),1);renderDocs();return;}
+  var rmcity=e.target.closest('[data-rmcity]');if(rmcity){eCity.splice(parseInt(rmcity.getAttribute('data-rmcity')),1);renderCity();return;}
   var rmap=e.target.closest('[data-rmap]');if(rmap){var p=rmap.getAttribute('data-rmap').split('-');eDays[p[0]].activities[p[1]].photo=null;renderActs(parseInt(p[0]));return;}
+  var rmcp=e.target.closest('[data-rmcp]');if(rmcp){eCity[parseInt(rmcp.getAttribute('data-rmcp'))].imgData=null;renderCity();return;}
 });
-
 document.addEventListener('change',function(e){
-  var df=e.target.getAttribute('data-df');if(df){var p=df.split('-');eDays[p[0]][p[1]]=e.target.value;renderDays();markDirty();return;}
-  var af=e.target.getAttribute('data-af');if(af){var p=af.split('-');eDays[p[0]].activities[p[1]][p[2]]=e.target.value;markDirty();return;}
-  var pf=e.target.getAttribute('data-pf');if(pf){var p=pf.split('-');ePack[p[0]][p[1]]=e.target.value;markDirty();return;}
-  var inf=e.target.getAttribute('data-inf');if(inf){var p=inf.split('-');eInfo[p[0]][p[1]]=e.target.value;markDirty();return;}
-  var dcf=e.target.getAttribute('data-dcf');if(dcf){var p=dcf.split('-');eDocs[p[0]][p[1]]=e.target.value;markDirty();return;}
-  if(e.target.id==='heroInput'&&e.target.files[0]){handleImgFile(e.target.files[0],'hero');markDirty();}
-  if(e.target.id==='logoInput'&&e.target.files[0]){handleImgFile(e.target.files[0],'logo');markDirty();}
-  if(e.target.id==='cityPdfInput'&&e.target.files[0]){var f=e.target.files[0];var r=new FileReader();r.onload=function(ev){eCityPdf={name:f.name,data:ev.target.result};showCityPdfPrev();markDirty();};r.readAsDataURL(f);}
-  if(e.target.id==='opImgInput'&&e.target.files.length){
-    var files=Array.from(e.target.files);var pending=files.length;
-    files.forEach(function(file){var r=new FileReader();r.onload=function(ev){opImages.push({data:ev.target.result,caption:''});pending--;if(pending===0)renderOpImages();};r.readAsDataURL(file);});
-  }
-  var ap=e.target.getAttribute('data-ap');
-  if(ap&&e.target.files[0]){var p=ap.split('-');var f=e.target.files[0];var r=new FileReader();r.onload=(function(di,ai){return function(ev){eDays[di].activities[ai].photo=ev.target.result;renderActs(di);};})(parseInt(p[0]),parseInt(p[1]));r.readAsDataURL(f);}
+  var df=e.target.getAttribute('data-df');if(df){var p=df.split('-');eDays[p[0]][p[1]]=e.target.value;return;}
+  var af=e.target.getAttribute('data-af');if(af){var p=af.split('-');eDays[p[0]].activities[p[1]][p[2]]=e.target.value;return;}
+  var pf=e.target.getAttribute('data-pf');if(pf){var p=pf.split('-');ePack[p[0]][p[1]]=e.target.value;return;}
+  var inf=e.target.getAttribute('data-inf');if(inf){var p=inf.split('-');eInfo[p[0]][p[1]]=e.target.value;return;}
+  var dcf=e.target.getAttribute('data-dcf');if(dcf){var p=dcf.split('-');eDocs[p[0]][p[1]]=e.target.value;return;}
+  var cf=e.target.getAttribute('data-cf');if(cf){var p=cf.split('-');eCity[p[0]][p[1]]=e.target.value;return;}
+  if(e.target.id==='heroInput'&&e.target.files[0])handleImgFile(e.target.files[0],'hero');
+  if(e.target.id==='logoInput'&&e.target.files[0])handleImgFile(e.target.files[0],'logo');
+  if(e.target.id==='pdfInput'&&e.target.files[0])handlePDF(e.target.files[0]);
+  var ap=e.target.getAttribute('data-ap');if(ap&&e.target.files[0]){var p=ap.split('-');var f=e.target.files[0];var r=new FileReader();r.onload=(function(di,ai){return function(ev){eDays[di].activities[ai].photo=ev.target.result;renderActs(di);};})(parseInt(p[0]),parseInt(p[1]));r.readAsDataURL(f);}
+  var cp=e.target.getAttribute('data-cp');if(cp&&e.target.files[0]){var idx=parseInt(cp);var f=e.target.files[0];var r=new FileReader();r.onload=(function(i){return function(ev){eCity[i].imgData=ev.target.result;renderCity();};})(idx);r.readAsDataURL(f);}
 });
-
 function addAct(di){if(!eDays[di].activities)eDays[di].activities=[];eDays[di].activities.push({time:'',title:'',desc:'',mapQuery:'',photo:null});renderActs(di);}
-
 function renderActs(di){
   var c=document.getElementById('ac'+di);if(!c)return;c.innerHTML='';
   var acts=eDays[di].activities||[];
-  for(var ai=0;ai<acts.length;ai++){
-    (function(ai){var a=acts[ai];var el=document.createElement('div');el.className='ab';
-      el.innerHTML='<div class="abh"><h5>Activity '+(ai+1)+'</h5><button class="rb" data-rmact="'+di+'-'+ai+'">&times;</button></div>'+
-        '<div class="ag"><div><label class="fl">Time</label><input class="fi" value="'+esc(a.time||'')+'" placeholder="09:00" data-af="'+di+'-'+ai+'-time"/></div>'+
-        '<div><label class="fl">Name</label><input class="fi" value="'+esc(a.title||'')+'" data-af="'+di+'-'+ai+'-title"/></div></div>'+
-        '<div class="fg"><label class="fl">Description</label><input class="fi" value="'+esc(a.desc||'')+'" data-af="'+di+'-'+ai+'-desc"/></div>'+
-        '<div class="abot"><div class="fg"><label class="fl">Maps Location</label><input class="fi" value="'+esc(a.mapQuery||'')+'" placeholder="e.g. Senso-ji Temple Tokyo" data-af="'+di+'-'+ai+'-mapQuery"/></div>'+
-        '<div class="fg"><label class="fl">Photo</label><div class="uz" style="padding:7px"><input type="file" accept="image/*" data-ap="'+di+'-'+ai+'"/><p style="font-size:9px">'+(a.photo?'Change':'Upload optional')+'</p></div>'+
-        (a.photo?'<div class="uprev"><img src="'+a.photo+'" alt=""/><button class="uclear" data-rmap="'+di+'-'+ai+'">Remove</button></div>':'')+
-        '</div></div>';
-      c.appendChild(el);
-    })(ai);
+  for(var ai=0;ai<acts.length;ai++){(function(ai){var a=acts[ai];var el=document.createElement('div');el.className='ab';
+    el.innerHTML='<div class="abh"><h5>Activity '+(ai+1)+'</h5><button class="rb" data-rmact="'+di+'-'+ai+'">x</button></div>'+
+      '<div class="ag"><div><label class="fl">Time</label><input class="fi" value="'+esc(a.time||'')+'" placeholder="09:00" data-af="'+di+'-'+ai+'-time"/></div>'+
+      '<div><label class="fl">Name</label><input class="fi" value="'+esc(a.title||'')+'" data-af="'+di+'-'+ai+'-title"/></div></div>'+
+      '<div class="fg"><label class="fl">Description</label><input class="fi" value="'+esc(a.desc||'')+'" data-af="'+di+'-'+ai+'-desc"/></div>'+
+      '<div class="abot"><div class="fg"><label class="fl">Maps Location</label><input class="fi" value="'+esc(a.mapQuery||'')+'" data-af="'+di+'-'+ai+'-mapQuery"/></div>'+
+      '<div class="fg"><label class="fl">Photo</label><div class="uz" style="padding:7px"><input type="file" accept="image/*" data-ap="'+di+'-'+ai+'"/><p style="font-size:9px">'+(a.photo?'Change':'Upload optional')+'</p></div>'+
+      (a.photo?'<div class="uprev"><img src="'+a.photo+'" alt=""/><button class="uclear" data-rmap="'+di+'-'+ai+'">Remove</button></div>':'')+
+      '</div></div>';
+    c.appendChild(el);})(ai);
   }
 }
-
 function renderPack(){
   var list=document.getElementById('packList');if(!list)return;list.innerHTML='';
-  for(var i=0;i<ePack.length;i++){
-    (function(i){var li=document.createElement('li');li.className='pei';li.draggable=true;
-      li.innerHTML='<span class="dh2">&#8597;</span><input class="pm" placeholder="e.g. Passport" value="'+esc(ePack[i].label||'')+'" data-pf="'+i+'-label"/>'+
-        '<input class="pcat" placeholder="Category" value="'+esc(ePack[i].category||'')+'" data-pf="'+i+'-category"/>'+
-        '<button class="rb" data-rmpack="'+i+'">&times;</button>';
-      li.addEventListener('dragstart',function(e){dragSrc=i;li.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
-      li.addEventListener('dragend',function(){li.classList.remove('dragging');});
-      li.addEventListener('dragover',function(e){e.preventDefault();li.classList.add('drag-over');});
-      li.addEventListener('dragleave',function(){li.classList.remove('drag-over');});
-      li.addEventListener('drop',function(e){e.preventDefault();li.classList.remove('drag-over');if(dragSrc===null||dragSrc===i)return;var m=ePack.splice(dragSrc,1)[0];ePack.splice(i,0,m);dragSrc=null;renderPack();markDirty();});
-      list.appendChild(li);
-    })(i);
+  for(var i=0;i<ePack.length;i++){(function(i){var li=document.createElement('li');li.className='pei';li.draggable=true;
+    li.innerHTML='<span class="dh2">+</span><input class="pm" placeholder="e.g. Passport" value="'+esc(ePack[i].label||'')+'" data-pf="'+i+'-label"/>'+
+      '<input class="pcat" placeholder="Category" value="'+esc(ePack[i].category||'')+'" data-pf="'+i+'-category"/>'+
+      '<button class="rb" data-rmpack="'+i+'">x</button>';
+    li.addEventListener('dragstart',function(e){dragSrc=i;li.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    li.addEventListener('dragend',function(){li.classList.remove('dragging');});
+    li.addEventListener('dragover',function(e){e.preventDefault();li.classList.add('drag-over');});
+    li.addEventListener('dragleave',function(){li.classList.remove('drag-over');});
+    li.addEventListener('drop',function(e){e.preventDefault();li.classList.remove('drag-over');if(dragSrc===null||dragSrc===i)return;var m=ePack.splice(dragSrc,1)[0];ePack.splice(i,0,m);dragSrc=null;renderPack();});
+    list.appendChild(li);})(i);
   }
 }
-
-function renderInfo(){
-  var c=document.getElementById('infoC');if(!c)return;c.innerHTML='';
-  for(var i=0;i<eInfo.length;i++){
-    (function(i){var el=document.createElement('div');el.className='ci';
-      el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px"><input class="fi" value="'+esc(eInfo[i].title||'')+'" placeholder="Section title" style="flex:1" data-inf="'+i+'-title"/><button class="rb" data-rminfo="'+i+'">&times;</button></div><textarea class="fta" data-inf="'+i+'-content">'+esc(eInfo[i].content||'')+'</textarea>';
-      c.appendChild(el);
-    })(i);
-  }
-}
-
-function renderDocs(){
-  var c=document.getElementById('docsC');if(!c)return;c.innerHTML='';
-  for(var i=0;i<eDocs.length;i++){
-    (function(i){var el=document.createElement('div');el.className='dei';
-      if(eDocs[i].type==='pdf'){el.innerHTML='<span class="dtb pdf">PDF</span><span style="flex:1;font-size:12px">'+esc(eDocs[i].name||'')+'</span><input class="fi" style="width:150px;flex:none" value="'+esc(eDocs[i].label||'')+'" data-dcf="'+i+'-label"/><button class="rb" data-rmdoc="'+i+'">&times;</button>';}
-      else{el.innerHTML='<span class="dtb link">LINK</span><input class="fi" style="flex:1" value="'+esc(eDocs[i].label||'')+'" placeholder="Label" data-dcf="'+i+'-label"/><input class="fi" style="width:190px;flex:none" value="'+esc(eDocs[i].url||'')+'" placeholder="https://..." data-dcf="'+i+'-url"/><button class="rb" data-rmdoc="'+i+'">&times;</button>';}
-      c.appendChild(el);
-    })(i);
-  }
-}
-
-function addDocUpload(){
-  var inp=document.createElement('input');inp.type='file';inp.accept='application/pdf';
-  inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){eDocs.push({type:'pdf',name:f.name,label:f.name.replace('.pdf',''),data:ev.target.result});renderDocs();};r.readAsDataURL(f);};
-  inp.click();
-}
-
-function renderCity(){var c=document.getElementById('cityC');if(c)c.innerHTML='';}
-
-function showCityPdfPrev(){
-  var c=document.getElementById('cityPdfPrev');var u=document.getElementById('cityPdfUpload');if(!c)return;
-  if(eCityPdf){
-    c.innerHTML='<div class="uprev" style="margin-bottom:12px"><span style="font-size:12px;color:var(--purple)">&#128196; '+esc(eCityPdf.name||'City Guide PDF')+'</span><button class="uclear" id="removeCityPdf">Remove</button></div>';
-    if(u)u.style.display='none';
-    var rb=document.getElementById('removeCityPdf');if(rb)rb.addEventListener('click',function(){eCityPdf=null;showCityPdfPrev();markDirty();});
-  } else {c.innerHTML='';if(u)u.style.display='block';}
-}
-
+function renderInfo(){var c=document.getElementById('infoC');if(!c)return;c.innerHTML='';for(var i=0;i<eInfo.length;i++){(function(i){var el=document.createElement('div');el.className='ci';el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px"><input class="fi" value="'+esc(eInfo[i].title||'')+'" placeholder="Section title" style="flex:1" data-inf="'+i+'-title"/><button class="rb" data-rminfo="'+i+'">x</button></div><textarea class="fta" data-inf="'+i+'-content">'+esc(eInfo[i].content||'')+'</textarea>';c.appendChild(el);})(i);}}
+function renderDocs(){var c=document.getElementById('docsC');if(!c)return;c.innerHTML='';for(var i=0;i<eDocs.length;i++){(function(i){var el=document.createElement('div');el.className='dei';if(eDocs[i].type==='pdf'){el.innerHTML='<span class="dtb pdf">PDF</span><span style="flex:1;font-size:12px">'+esc(eDocs[i].name||'')+'</span><input class="fi" style="width:150px;flex:none" value="'+esc(eDocs[i].label||'')+'" data-dcf="'+i+'-label"/><button class="rb" data-rmdoc="'+i+'">x</button>';}else{el.innerHTML='<span class="dtb link">LINK</span><input class="fi" style="flex:1" value="'+esc(eDocs[i].label||'')+'" data-dcf="'+i+'-label"/><input class="fi" style="width:190px;flex:none" value="'+esc(eDocs[i].url||'')+'" data-dcf="'+i+'-url"/><button class="rb" data-rmdoc="'+i+'">x</button>';}c.appendChild(el);})(i);}}
+function addDocUpload(){var inp=document.createElement('input');inp.type='file';inp.accept='application/pdf';inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){eDocs.push({type:'pdf',name:f.name,label:f.name.replace('.pdf',''),data:ev.target.result});renderDocs();};r.readAsDataURL(f);};inp.click();}
+function renderCity(){var c=document.getElementById('cityC');if(!c)return;c.innerHTML='';for(var i=0;i<eCity.length;i++){(function(i){var el=document.createElement('div');el.className='ci';el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:9px"><input class="fi" value="'+esc(eCity[i].name||'')+'" placeholder="City name" style="flex:1" data-cf="'+i+'-name"/><button class="rb" data-rmcity="'+i+'">x</button></div><div class="fg"><label class="fl">City Photo</label><div class="uz" style="padding:7px"><input type="file" accept="image/*" data-cp="'+i+'"/><p style="font-size:9px">'+(eCity[i].imgData?'Change':'Upload optional')+'</p></div>'+(eCity[i].imgData?'<div class="uprev"><img src="'+eCity[i].imgData+'" alt=""/><button class="uclear" data-rmcp="'+i+'">Remove</button></div>':'')+' </div><label class="fl">Tips (one per line)</label><textarea class="fta" data-cf="'+i+'-tips">'+esc(eCity[i].tips||'')+'</textarea>';c.appendChild(el);})(i);}}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
-// TRAVELER HTML
-function buildTravelerHTML(trip){
+function buildHTML(trip){
   var tabs=[],sections=[];
   function addSec(label,html){var idx=tabs.length;tabs.push(label);sections.push('<div class="sec'+(idx===0?' active':'')+'" id="s'+idx+'">'+html+'</div>');}
-  if(trip.welcome)addSec('Welcome','<p class="sttl">Welcome</p><p style="font-size:15px;line-height:1.9;max-width:600px;white-space:pre-wrap">'+trip.welcome+'</p>');
+  if(trip.welcome)addSec('Welcome','<p class="sttl">Welcome</p><p style="font-size:15px;line-height:1.9;max-width:600px">'+trip.welcome+'</p>');
   if(trip.days&&trip.days.length){
     var pills='';if(trip.days.length>1){pills='<div class="dpills">';for(var di=0;di<trip.days.length;di++){pills+='<div class="dpill'+(di===0?' active':'')+'" onclick="goDay('+di+',this)">Day '+(di+1)+'</div>';}pills+='</div>';}
     var body='<p class="sttl">Day by Day Itinerary</p>'+pills;
-    for(var di=0;di<trip.days.length;di++){
-      var d=trip.days[di];
-      body+='<div class="dayb" id="day'+di+'"><div class="dayhd"><span class="dnum">'+String(di+1)+'</span><div><div class="dtit">'+(d.title||'Day '+(di+1))+'</div><div class="ddt">'+(d.date||'')+'</div></div></div>';
-      var acts=d.activities||[];
-      for(var ai=0;ai<acts.length;ai++){var a=acts[ai];body+='<div class="ac">'+(a.photo?'<img src="'+a.photo+'" style="width:100%;height:200px;object-fit:cover;display:block" alt=""/>':'')+'<div class="acb">'+(a.time?'<div class="atm">'+a.time+'</div>':'')+'<div class="atl">'+(a.title||'')+'</div>'+(a.desc?'<div class="ads">'+a.desc+'</div>':'')+(a.mapQuery?'<a class="mbt" href="'+(a.mapQuery.indexOf("http")===0?a.mapQuery:"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(a.mapQuery))+'" target="_blank">&#x1F4CD; View on Google Maps</a>':'')+'</div></div>';}
-      body+='</div>';
-    }
-    addSec('Itinerary',body);
-  }
-  var packBody='<p class="sttl">Packing Checklist</p>';
-  if(!trip.packing||!trip.packing.length){packBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
-  else{var bc={};for(var i=0;i<trip.packing.length;i++){var cat=trip.packing[i].category||'General';if(!bc[cat])bc[cat]=[];bc[cat].push(trip.packing[i].label);}var cats=Object.keys(bc);for(var ci=0;ci<cats.length;ci++){packBody+='<div style="margin-bottom:22px"><p style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#808080;margin-bottom:9px">'+cats[ci]+'</p>';for(var ii=0;ii<bc[cats[ci]].length;ii++){packBody+='<div class="pi" onclick="this.classList.toggle(\'chk\')"><div class="pk"></div><span class="pkl">'+bc[cats[ci]][ii]+'</span></div>';}packBody+='</div>';}}
-  addSec('Packing',packBody);
-  var infoBody='<p class="sttl">General Information</p>';
-  if(!trip.info||!trip.info.length){infoBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
-  else{for(var i=0;i<trip.info.length;i++){infoBody+='<div class="ic"><h4>'+(trip.info[i].title||'')+'</h4><p>'+(trip.info[i].content||'')+'</p></div>';}}
-  addSec('General Info',infoBody);
-  var docsBody='<p class="sttl">Documents</p>';
-  if(!trip.docs||!trip.docs.length){docsBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
-  else{for(var i=0;i<trip.docs.length;i++){var doc=trip.docs[i];var href=doc.type==='pdf'?doc.data:doc.url||'#';docsBody+='<a class="dc" href="'+href+'" target="_blank"><div class="dico">'+(doc.type==='pdf'?'PDF':'LINK')+'</div><div><div style="font-size:13px;font-weight:400">'+(doc.label||doc.name||'Doc')+'</div><div style="font-size:10px;color:#B0B0B0">Tap to open</div></div><span style="color:#5B2D8E;margin-left:auto">&#8594;</span></a>';}}
-  addSec('Documents',docsBody);
-  var cityBody='<p class="sttl">City Guide</p>';
-  if(trip.cityPdf&&trip.cityPdf.data){cityBody+='<a class="dc" href="'+trip.cityPdf.data+'" target="_blank" download="'+(trip.cityPdf.name||'city-guide.pdf')+'"><div class="dico">PDF</div><div><div style="font-size:13px;font-weight:400">'+(trip.cityPdf.name||'City Guide')+'</div><div style="font-size:10px;color:#B0B0B0">Tap to open</div></div><span style="color:var(--brand,#5B2D8E);margin-left:auto">&#8594;</span></a>';}
-  else{cityBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}
-  addSec('City Guide',cityBody);
-  var brandColor=trip.brandColor||'#5B2D8E';
-  var boxStyle=trip.boxStyle||'frosted-white';
-  var boxOp=parseFloat(trip.boxOpacity)||0.15;
-  var hboxBg=boxStyle==='none'?'background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;':boxStyle==='frosted-dark'?'background:rgba(0,0,0,'+boxOp+');backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);':'background:rgba(255,255,255,'+boxOp+');backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);';
+    for(var di=0;di<trip.days.length;di++){var d=trip.days[di];body+='<div class="dayb" id="day'+di+'"><div class="dayhd"><span class="dnum">'+String(di+1)+'</span><div><div class="dtit">'+(d.title||'Day '+(di+1))+'</div><div class="ddt">'+(d.date||'')+'</div></div></div>';var acts=d.activities||[];for(var ai=0;ai<acts.length;ai++){var a=acts[ai];var mid='m'+di+'_'+ai;body+='<div class="ac">'+(a.photo?'<img src="'+a.photo+'" style="width:100%;height:200px;object-fit:cover;display:block" alt=""/>':'')+'<div class="acb">'+(a.time?'<div class="atm">'+a.time+'</div>':'')+'<div class="atl">'+(a.title||'')+'</div>'+(a.desc?'<div class="ads">'+a.desc+'</div>':'')+(a.mapQuery?'<button class="mbt" onclick="tMap(\''+mid+'\',this)">View on Map</button><iframe id="'+mid+'" class="mfr" src="" data-src="https://maps.google.com/maps?q='+encodeURIComponent(a.mapQuery)+'&output=embed&z=15" allowfullscreen loading="lazy"></iframe>':'')+'</div></div>';}body+='</div>';}addSec('Itinerary',body);}
+  var packBody='<p class="sttl">Packing Checklist</p>';if(!trip.packing||!trip.packing.length){packBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}else{var bc={};for(var i=0;i<trip.packing.length;i++){var cat=trip.packing[i].category||'General';if(!bc[cat])bc[cat]=[];bc[cat].push(trip.packing[i].label);}var cats=Object.keys(bc);for(var ci=0;ci<cats.length;ci++){packBody+='<div style="margin-bottom:22px"><p style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#808080;margin-bottom:9px">'+cats[ci]+'</p>';for(var ii=0;ii<bc[cats[ci]].length;ii++){packBody+='<div class="pi" onclick="this.classList.toggle(\'chk\')"><div class="pk"></div><span class="pkl">'+bc[cats[ci]][ii]+'</span></div>';}packBody+='</div>';}}addSec('Packing',packBody);
+  var infoBody='<p class="sttl">General Information</p>';if(!trip.info||!trip.info.length){infoBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}else{for(var i=0;i<trip.info.length;i++){infoBody+='<div class="ic"><h4>'+(trip.info[i].title||'')+'</h4><p>'+(trip.info[i].content||'')+'</p></div>';}}addSec('General Info',infoBody);
+  var docsBody='<p class="sttl">Documents</p>';if(!trip.docs||!trip.docs.length){docsBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}else{for(var i=0;i<trip.docs.length;i++){var doc=trip.docs[i];var href=doc.type==='pdf'?doc.data:doc.url||'#';docsBody+='<a class="dc" href="'+href+'" target="_blank"><div class="dico">'+(doc.type==='pdf'?'PDF':'LINK')+'</div><div><div style="font-size:13px;font-weight:400">'+(doc.label||doc.name||'Doc')+'</div><div style="font-size:10px;color:#B0B0B0">Tap to open</div></div><span style="color:#5B2D8E;margin-left:auto">&#8594;</span></a>';}}addSec('Documents',docsBody);
+  var cityBody='<p class="sttl">City Guide</p>';if(!trip.cityGuide||!trip.cityGuide.length){cityBody+='<p style="font-size:13px;color:#B0B0B0;font-style:italic">Coming soon.</p>';}else{cityBody+='<div class="cgg">';for(var i=0;i<trip.cityGuide.length;i++){var city=trip.cityGuide[i];var tips=(city.tips||'').split('\n');var th='';for(var ti=0;ti<tips.length;ti++){if(tips[ti].trim())th+='<li>'+tips[ti]+'</li>';}cityBody+='<div class="cgc"><div class="cgi">'+(city.imgData?'<img src="'+city.imgData+'" style="width:100%;height:100%;object-fit:cover" alt=""/>':'<span style="color:rgba(255,255,255,.5);font-size:11px">'+(city.name||'')+'</span>')+'</div><div class="cgb"><h4>'+(city.name||'')+'</h4><ul class="cgt">'+th+'</ul></div></div>';}cityBody+='</div>';}addSec('City Guide',cityBody);
   var navItems='';for(var i=0;i<tabs.length;i++){navItems+='<div class="ni'+(i===0?' active':'')+'" onclick="goTab('+i+',this)">'+tabs[i]+'</div>';}
+  // Logo position in hero
+  var logoPos=trip.logoPosition||'center';
+  var heroFlex='column';
   var clientBlock='';
-  if(trip.clientLogo){clientBlock='<img src="'+trip.clientLogo+'" style="max-height:90px;max-width:220px;object-fit:contain;display:block;margin:0 auto 20px" alt=""/>';}
-  else if(trip.clientName){clientBlock='<div style="color:#fff;font-size:12px;letter-spacing:.25em;text-transform:uppercase;font-weight:300;margin-bottom:18px;text-align:center;width:100%">'+trip.clientName+'</div>';}
+  if(trip.clientLogo){
+    var logoHTML='<img src="'+trip.clientLogo+'" style="max-height:80px;max-width:200px;object-fit:contain;display:block;margin:0 auto" alt=""/>';
+    if(logoPos==='top'){clientBlock='<div style="position:absolute;top:24px;left:0;right:0;text-align:center;z-index:3">'+logoHTML+'</div>';}
+    else if(logoPos==='bottom'){clientBlock='<div style="position:absolute;bottom:24px;left:0;right:0;text-align:center;z-index:3">'+logoHTML+'</div>';}
+    else{clientBlock='<div style="margin-bottom:16px">'+logoHTML+'</div>';}
+  } else if(trip.clientName){
+    if(logoPos==='top'){clientBlock='<div style="position:absolute;top:24px;left:0;right:0;text-align:center;z-index:3;color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300">'+trip.clientName+'</div>';}
+    else if(logoPos==='bottom'){clientBlock='<div style="position:absolute;bottom:24px;left:0;right:0;text-align:center;z-index:3;color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300">'+trip.clientName+'</div>';}
+    else{clientBlock='<div style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300;margin-bottom:14px">'+trip.clientName+'</div>';}
+  }
+
+  // Password protection
+  var passwordScript='';
+  if(trip.tripPassword){
+    passwordScript='(function(){'+
+      'var stored=sessionStorage.getItem("trip_auth_'+trip.code+'");'+
+      'if(stored===btoa("'+trip.tripPassword+'")){return;}'+
+      'var overlay=document.createElement("div");'+
+      'overlay.style.cssText="position:fixed;inset:0;background:#fff;z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Helvetica Neue,Helvetica,Arial,sans-serif";'+
+      'overlay.innerHTML=\'<div style="text-align:center;padding:48px 36px;max-width:360px;width:100%">\''+
+      '+\'<svg viewBox="0 0 320 28" xmlns="http://www.w3.org/2000/svg" style="height:22px;width:auto;display:block;margin:0 auto 8px"><text x="0" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#5B2D8E">LIAISONS</text><text x="158" y="22" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="24" letter-spacing="5" fill="#808080">TRAVEL</text></svg>\''+
+      '+\'<p style="font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#B0B0B0;margin-bottom:32px">Your trip is ready</p>\''+
+      '+\'<input id="tripPassInput" type="password" placeholder="Enter your access code" style="width:100%;border:none;border-bottom:2px solid #E0E0E0;padding:10px 0;font-size:15px;font-weight:300;outline:none;font-family:inherit;margin-bottom:8px"/>\''+
+      '+\'<div id="tripPassErr" style="color:#c0392b;font-size:12px;min-height:16px;margin-bottom:16px"></div>\''+
+      '+\'<button onclick="checkPass()" style="background:#5B2D8E;color:#fff;border:none;padding:12px 32px;letter-spacing:.15em;text-transform:uppercase;font-size:11px;cursor:pointer;font-family:inherit;width:100%">Access My Trip</button>\''+
+      '+\'</div>\';'+
+      'document.body.appendChild(overlay);'+
+      'document.getElementById("tripPassInput").addEventListener("keydown",function(e){if(e.key==="Enter")checkPass();});'+
+      'window.checkPass=function(){'+
+        'var val=document.getElementById("tripPassInput").value;'+
+        'if(val==="'+trip.tripPassword+'"){sessionStorage.setItem("trip_auth_'+trip.code+'",btoa("'+trip.tripPassword+'"));overlay.remove();}'+
+        'else{document.getElementById("tripPassErr").textContent="Incorrect code. Please try again.";}'+
+      '};'+
+    '})();';
+  }
   var phone=(trip.contactPhone||'').replace(/\s+/g,'');
-  var contactBtn=phone?'<a href="https://wa.me/'+phone.replace(/\+/g,'')+'" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25D366;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">&#128172; Message Liaisons Team</a>':'';
+  var contactBtn=phone?'<a href="https://wa.me/'+phone.replace('+','')+'" target="_blank" style="position:fixed;bottom:24px;right:24px;z-index:999;background:#25D366;color:#fff;border-radius:50px;padding:12px 20px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2)">Message Liaisons Team</a>':'';
   var daysJSON=JSON.stringify(trip.days||[]);
-  return '<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>'+(trip.name||'My Trip')+'</title>'+
-'<style>:root{--brand:'+brandColor+'}*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#fff;color:#2D2D2D}'+
-'.hero{position:relative;height:65vh;min-height:300px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}'+
-'.hbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}'+
-'.hdk{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.32);pointer-events:none}'+
-'.hov{position:relative;z-index:2;text-align:center;padding:16px;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}.hbox{pointer-events:auto}'+
-'.hbox{padding:18px 32px;display:flex;flex-direction:column;align-items:center;max-width:400px;width:80%}'+
-'.htl{color:#fff;font-size:clamp(18px,4vw,42px);font-weight:100;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px;width:100%;text-align:center}'+
-'.hmt{color:rgba(255,255,255,.9);font-size:11px;letter-spacing:.22em;text-transform:uppercase;margin-bottom:0;text-align:center}'+
-'.hlt{margin-top:22px;display:flex;justify-content:center;width:100%}'+
-'nav{position:sticky;top:0;background:#fff;border-bottom:1px solid #E0E0E0;display:flex;overflow-x:auto;z-index:200;scrollbar-width:none}nav::-webkit-scrollbar{display:none}'+
-'.ni{padding:14px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;white-space:nowrap;color:#B0B0B0;border-bottom:2px solid transparent;flex-shrink:0}'+
-'.ni.active{color:var(--brand);border-bottom-color:var(--brand)}'+
-'.sec{display:none;max-width:860px;margin:0 auto;padding:44px 24px 80px}.sec.active{display:block}'+
-'.sttl{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#808080;margin-bottom:28px;padding-bottom:9px;border-bottom:1px solid #E0E0E0}'+
-'.dpills{display:flex;gap:7px;overflow-x:auto;padding-bottom:13px;margin-bottom:16px;scrollbar-width:none}.dpills::-webkit-scrollbar{display:none}'+
-'.dpill{flex-shrink:0;padding:5px 14px;border:1px solid #E0E0E0;border-radius:20px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#808080;cursor:pointer;white-space:nowrap}'+
-'.dpill.active{background:var(--brand);border-color:var(--brand);color:#fff}'+
-'.dayb{margin-bottom:40px;scroll-margin-top:70px}.dayhd{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}'+
-'.dnum{font-size:28px;font-weight:100;color:var(--brand);line-height:1}.dtit{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:300}.ddt{font-size:11px;color:#B0B0B0}'+
-'.ac{border:1px solid #E0E0E0;margin-bottom:12px;overflow:hidden}.acb{padding:13px}'+
-'.atm{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);margin-bottom:2px}'+
-'.atl{font-size:14px;font-weight:400;margin-bottom:3px}.ads{font-size:12px;color:#808080;line-height:1.6;margin-bottom:9px}'+
-'.mbt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--brand);background:none;border:1px solid #c9a8e8;padding:5px 12px;font-family:inherit;margin-top:4px;border-radius:3px;display:inline-block;text-decoration:none}'+
-'.pi{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #E0E0E0;cursor:pointer}.pi:last-child{border-bottom:none}'+
-'.pk{width:17px;height:17px;border:1px solid #E0E0E0;flex-shrink:0;display:flex;align-items:center;justify-content:center}'+
-'.pi.chk .pk{background:var(--brand);border-color:var(--brand)}.pi.chk .pk::after{content:"\\2713";color:#fff;font-size:10px}'+
-'.pi.chk .pkl{color:#B0B0B0;text-decoration:line-through}.pkl{font-size:13px;font-weight:300}'+
-'.ic{border:1px solid #E0E0E0;padding:20px;margin-bottom:13px}.ic h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);margin-bottom:9px}.ic p{font-size:13px;line-height:1.7;white-space:pre-wrap}'+
-'.dc{display:flex;align-items:center;gap:13px;padding:13px 16px;border:1px solid #E0E0E0;margin-bottom:9px;text-decoration:none;color:#2D2D2D}'+
-'.dico{width:36px;height:36px;background:#F5F5F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:400}'+
-'footer{text-align:center;padding:36px 24px;border-top:1px solid #E0E0E0;margin-bottom:80px}footer a{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#808080;text-decoration:none;margin:0 10px}</style>'+
-'</head><body>'+
-'<div class="hero">'+(trip.heroImg?'<img class="hbg" src="'+trip.heroImg+'" alt=""/>':'')+'<div class="hdk"></div>'+
-'<div class="hov"><div class="hbox" style="'+hboxBg+'">'+clientBlock+
-(trip.destinations?'<div class="htl">'+(trip.destinations||'')+'</div>':'')+
-(trip.dates?'<div class="hmt">'+(trip.dates||'')+'</div>':'')+
-'<div class="hlt"><img src="'+LOGO_URL+'" style="height:13px;width:auto;display:block;margin:0 auto;filter:brightness(0) invert(1);opacity:.8" alt="LIAISONS TRAVEL"/></div>'+
-'</div></div></div>'+
-'<nav>'+navItems+'</nav><div id="secs">'+sections.join('')+'</div>'+contactBtn+
-'<footer><img src="'+LOGO_URL+'" style="height:18px;width:auto;display:block;margin:0 auto 11px" alt="LIAISONS TRAVEL"/>'+
-'<p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0;margin-bottom:12px">ART - TRAVEL - CULTURE - LIFESTYLE</p>'+
-'<a href="https://www.liaisonstravel.com" target="_blank">liaisonstravel.com</a>'+
-'<a href="https://www.instagram.com/liaisonstravel/" target="_blank">@liaisonstravel</a></footer>'+
-'<script>'+
-'function goTab(idx,el){var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++)ns[i].classList.remove("active");var ss=document.querySelectorAll(".sec");for(var i=0;i<ss.length;i++)ss[i].classList.remove("active");el.classList.add("active");var s=document.getElementById("s"+idx);if(s){s.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}}'+
-'function goDay(idx,pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");var b=document.getElementById("day"+idx);if(b)b.scrollIntoView({behavior:"smooth",block:"start"});}'+
-'(function(){var days='+daysJSON+';if(!days.length)return;var today=new Date();today.setHours(0,0,0,0);var idx=0;'+
-'for(var i=0;i<days.length;i++){if(!days[i].date)continue;var p=new Date(days[i].date);if(isNaN(p.getTime()))continue;p.setHours(0,0,0,0);if(p.getTime()===today.getTime()){idx=i;break;}}'+
-'setTimeout(function(){var pill=document.querySelectorAll(".dpill")[idx];var block=document.getElementById("day"+idx);'+
-'if(pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");}'+
-'if(block){block.style.borderLeft="3px solid '+brandColor+'";block.style.paddingLeft="12px";'+
-'var badge=document.createElement("span");badge.textContent="TODAY";badge.style.cssText="display:inline-block;background:var(--brand);color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";'+
-'var te=block.querySelector(".dtit");if(te)te.appendChild(badge);'+
-'var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++){if(ns[i].textContent.trim()==="Itinerary")goTab(i,ns[i]);}'+
-'block.scrollIntoView({behavior:"smooth",block:"start"});}},600);})();'+
-'<\/script></body></html>';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>'+(trip.name||'My Trip')+'</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#fff;color:#2D2D2D}.hero{position:relative;height:75vh;min-height:360px;background:#111;display:flex;align-items:center;justify-content:center;overflow:hidden}.hbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.6}.hdk{position:absolute;inset:0;background:rgba(0,0,0,.32)}.hov{position:relative;z-index:2;text-align:center;padding:24px;width:100%;display:flex;flex-direction:column;align-items:center}.htl{color:#fff;font-size:clamp(20px,5vw,52px);font-weight:100;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}.hmt{color:rgba(255,255,255,.75);font-size:12px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:22px}.hlt{opacity:.6;margin-top:10px}nav{position:sticky;top:0;background:#fff;border-bottom:1px solid #E0E0E0;display:flex;overflow-x:auto;z-index:100;scrollbar-width:none}nav::-webkit-scrollbar{display:none}.ni{padding:14px 22px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;cursor:pointer;white-space:nowrap;color:#B0B0B0;border-bottom:2px solid transparent;flex-shrink:0}.ni.active{color:#5B2D8E;border-bottom-color:#5B2D8E}.sec{display:none;max-width:860px;margin:0 auto;padding:44px 24px}.sec.active{display:block}.sttl{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#808080;margin-bottom:28px;padding-bottom:9px;border-bottom:1px solid #E0E0E0}.dpills{display:flex;gap:7px;overflow-x:auto;padding-bottom:13px;margin-bottom:16px;scrollbar-width:none}.dpills::-webkit-scrollbar{display:none}.dpill{flex-shrink:0;padding:5px 14px;border:1px solid #E0E0E0;border-radius:20px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#808080;cursor:pointer;white-space:nowrap}.dpill.active{background:#5B2D8E;border-color:#5B2D8E;color:#fff}.dayb{margin-bottom:40px;scroll-margin-top:70px}.dayhd{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}.dnum{font-size:28px;font-weight:100;color:#5B2D8E;line-height:1}.dtit{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:300}.ddt{font-size:11px;color:#B0B0B0}.ac{border:1px solid #E0E0E0;margin-bottom:12px;overflow:hidden}.acb{padding:13px}.atm{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5B2D8E;margin-bottom:2px}.atl{font-size:14px;font-weight:400;margin-bottom:3px}.ads{font-size:12px;color:#808080;line-height:1.6;margin-bottom:9px}.mbt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#5B2D8E;background:none;border:none;cursor:pointer;padding:0;font-family:inherit}.mfr{width:100%;height:240px;border:none;display:none;margin-top:7px}.mfr.open{display:block}.pi{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #E0E0E0;cursor:pointer}.pi:last-child{border-bottom:none}.pk{width:17px;height:17px;border:1px solid #E0E0E0;flex-shrink:0;display:flex;align-items:center;justify-content:center}.pi.chk .pk{background:#5B2D8E;border-color:#5B2D8E}.pi.chk .pk::after{content:"\\2713";color:#fff;font-size:10px}.pi.chk .pkl{color:#B0B0B0;text-decoration:line-through}.pkl{font-size:13px;font-weight:300}.ic{border:1px solid #E0E0E0;padding:20px;margin-bottom:13px}.ic h4{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#5B2D8E;margin-bottom:9px}.ic p{font-size:13px;line-height:1.7;white-space:pre-wrap}.dc{display:flex;align-items:center;gap:13px;padding:13px 16px;border:1px solid #E0E0E0;margin-bottom:9px;text-decoration:none;color:#2D2D2D}.dico{width:36px;height:36px;background:#F5F5F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:400}.cgg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}.cgc{border:1px solid #E0E0E0;overflow:hidden}.cgi{height:130px;background:linear-gradient(135deg,#5B2D8E,#3a1a5e);display:flex;align-items:center;justify-content:center;overflow:hidden}.cgb{padding:13px}.cgb h4{font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:7px}.cgt{list-style:none}.cgt li{font-size:12px;padding:4px 0;border-bottom:1px solid #E0E0E0}.cgt li:last-child{border-bottom:none}.cgt li::before{content:"- ";color:#5B2D8E}footer{text-align:center;padding:36px 24px;border-top:1px solid #E0E0E0}footer a{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#808080;text-decoration:none;margin:0 10px}</style></head><body>'+
+  '<div class="hero">'+(trip.heroImg?'<img class="hbg" src="'+trip.heroImg+'" alt=""/>':'')+'<div class="hdk"></div><div class="hov">'+clientBlock+'<div class="htl">'+(trip.name||'')+'</div><div class="hmt">'+[trip.destinations,trip.dates].filter(Boolean).join(' - ')+'</div><div class="hlt"><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:13px;width:auto"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="white">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="rgba(255,255,255,.8)">TRAVEL</text></svg></div></div></div>'+
+  '<nav>'+navItems+'</nav><div id="secs">'+sections.join('')+'</div>'+contactBtn+
+  '<footer><svg viewBox="0 0 320 24" xmlns="http://www.w3.org/2000/svg" style="height:14px;width:auto;display:block;margin:0 auto 11px"><text x="0" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#5B2D8E">LIAISONS</text><text x="134" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-weight="100" font-size="20" letter-spacing="5" fill="#808080">TRAVEL</text></svg><p style="font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:#B0B0B0;margin-bottom:12px">ART - TRAVEL - CULTURE - LIFESTYLE</p><a href="https://www.liaisonstravel.com" target="_blank">liaisonstravel.com</a><a href="https://www.instagram.com/liaisonstravel/" target="_blank">@liaisonstravel</a></footer>'+
+  '<script>function goTab(idx,el){var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++)ns[i].classList.remove("active");var ss=document.querySelectorAll(".sec");for(var i=0;i<ss.length;i++)ss[i].classList.remove("active");el.classList.add("active");var s=document.getElementById("s"+idx);if(s){s.classList.add("active");window.scrollTo({top:0,behavior:"smooth"});}}function goDay(idx,pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");var b=document.getElementById("day"+idx);if(b)b.scrollIntoView({behavior:"smooth",block:"start"});}function tMap(id,btn){var f=document.getElementById(id);if(!f)return;var open=f.classList.toggle("open");if(open&&f.dataset.src&&!f.src)f.src=f.dataset.src;btn.textContent=open?"Hide Map":"View on Map";}(function(){var days='+daysJSON+';if(!days.length)return;var today=new Date();today.setHours(0,0,0,0);var idx=0;for(var i=0;i<days.length;i++){if(!days[i].date)continue;var p=new Date(days[i].date);if(isNaN(p.getTime()))continue;p.setHours(0,0,0,0);if(p.getTime()===today.getTime()){idx=i;break;}}setTimeout(function(){var pill=document.querySelectorAll(".dpill")[idx];var block=document.getElementById("day"+idx);if(pill){var ps=document.querySelectorAll(".dpill");for(var i=0;i<ps.length;i++)ps[i].classList.remove("active");pill.classList.add("active");}if(block){block.style.borderLeft="3px solid #5B2D8E";block.style.paddingLeft="12px";var badge=document.createElement("span");badge.textContent="TODAY";badge.style.cssText="display:inline-block;background:#5B2D8E;color:#fff;font-size:8px;letter-spacing:.15em;padding:2px 7px;margin-left:10px;vertical-align:middle";var te=block.querySelector(".dtit");if(te)te.appendChild(badge);var ns=document.querySelectorAll(".ni");for(var i=0;i<ns.length;i++){if(ns[i].textContent.trim()==="Itinerary")goTab(i,ns[i]);}block.scrollIntoView({behavior:"smooth",block:"start"});}},600);})();<\/script></body></html>';
 }
 
 function renderTV(trip){
   var bg=document.getElementById('tvBg');
   if(trip.heroImg){bg.src=trip.heroImg;bg.style.display='block';}else bg.style.display='none';
   document.getElementById('tvTitle').textContent=trip.name||'';
-  document.getElementById('tvMeta').textContent=[trip.destinations,trip.dates].filter(Boolean).join(' — ');
+  document.getElementById('tvMeta').textContent=[trip.destinations,trip.dates].filter(Boolean).join(' - ');
   var cl=document.getElementById('tvClientLogo');
-  if(trip.clientLogo){cl.innerHTML='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block;margin:0 auto" alt=""/>';cl.style.display='flex';}
-  else if(trip.clientName){cl.innerHTML='<span style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300;text-align:center">'+trip.clientName+'</span>';cl.style.display='flex';}
+  if(trip.clientLogo){cl.innerHTML='<img src="'+trip.clientLogo+'" style="max-height:64px;max-width:180px;object-fit:contain;display:block" alt=""/>';cl.style.display='flex';}
+  else if(trip.clientName){cl.innerHTML='<span style="color:#fff;font-size:13px;letter-spacing:.2em;text-transform:uppercase;font-weight:300">'+trip.clientName+'</span>';cl.style.display='flex';}
   else{cl.innerHTML='';cl.style.display='none';}
   var secs=document.getElementById('tvSecs');
   secs.innerHTML='<iframe src="about:blank" style="width:100%;height:100vh;border:none;display:block" sandbox="allow-scripts allow-same-origin allow-popups" id="tvFrame"></iframe>';
   document.getElementById('tvNav').innerHTML='';
-  document.getElementById('tvFrame').srcdoc=buildTravelerHTML(trip);
+  document.getElementById('tvFrame').srcdoc=buildHTML(trip);
 }
 
 function checkHash(){
@@ -1052,184 +738,49 @@ function checkHash(){
     var code=h.replace('#trip/','').toLowerCase();
     var keys=Object.keys(trips);
     for(var i=0;i<keys.length;i++){if(trips[keys[i]].code===code){renderTV(trips[keys[i]]);document.getElementById('sTraveler').style.display='block';return;}}
-    var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
-    fetch(url,{headers:{Authorization:'Bearer '+(spToken||'')}}).then(function(r){return r.json();}).then(function(data){
+    // Not in cache - fetch from SP without auth
+    var url=LIST_URL+'/items?$expand=fields($select=TripCode,TripData)&$filter=fields/TripCode eq \''+code+'\'&$top=1';
+    fetch(url,{headers:{Authorization:'Bearer '+(spToken||'')}})
+    .then(function(r){return r.json();})
+    .then(function(data){
       var items=data.value||[];
-      for(var i=0;i<items.length;i++){try{var t=JSON.parse(items[i].fields.TripData||'{}');if(t.code&&t.code.toLowerCase()===code){renderTV(t);document.getElementById('sTraveler').style.display='block';return;}}catch(e){}}
-    }).catch(function(e){console.error('checkHash fetch error',e);});
+      if(items.length){var trip=JSON.parse(items[0].fields.TripData||'{}');renderTV(trip);document.getElementById('sTraveler').style.display='block';}
+    }).catch(function(){});
   }
 }
-
 window.addEventListener('hashchange',checkHash);
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();deferredPrompt=e;});
 
-// AI
-function setSt(m){var el=document.getElementById('aiSt');if(el)el.textContent=m;}
-function fileToB64(f){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(f);});}
-function handlePDF(f){
-  if(!f)return;var apiKey=localStorage.getItem('anthropic_key');
-  if(!apiKey){setSt('Add your Anthropic API key in Settings first.');openSettings();return;}
-  setSt('Reading PDF...');
-  fileToB64(f).then(function(b64){return callAI(null,b64,apiKey);}).catch(function(){setSt('Could not read PDF.');});
-}
-function callAI(text,pdfB64,apiKey){
-  setSt('Analyzing with AI...');
-  var sys='Return ONLY valid JSON, no markdown. Structure: {"tripName":"","destinations":"","dates":"","days":[{"title":"","date":"","activities":[{"time":"","title":"","desc":"","mapQuery":"venue+city","photo":null}]}]}';
-  var msgs=[{role:'user',content:pdfB64?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:pdfB64}},{type:'text',text:'Parse this PDF itinerary into the JSON structure.'}]:[{type:'text',text:'Parse this itinerary:\n\n'+text}]}];
-  return fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:4000,system:sys,messages:msgs})})
-  .then(function(r){return r.json();})
-  .then(function(data){
-    if(data.error){setSt('API error: '+data.error.message);return;}
-    var raw='';var c=data.content||[];for(var i=0;i<c.length;i++){if(c[i].type==='text'){raw=c[i].text;break;}}
-    raw=raw.replace(/```json/g,'').replace(/```/g,'').trim();
-    var p=JSON.parse(raw);
-    if(p.tripName&&!document.getElementById('fName').value){document.getElementById('fName').value=p.tripName;markDirty();}
-    if(p.destinations&&!document.getElementById('fDest').value){document.getElementById('fDest').value=p.destinations;markDirty();}
-    if(p.dates&&!document.getElementById('fDates').value){document.getElementById('fDates').value=p.dates;markDirty();}
-    if(p.days&&p.days.length){eDays=eDays.concat(p.days);renderDays();switchTab('tItinerary');setSt('Done! '+p.days.length+' days added.');markDirty();}
-    else setSt('No days found in PDF.');
-  }).catch(function(err){setSt('Error parsing response.');console.error(err);});
-}
-
-// GITHUB PUBLISH (trips)
-function publishTrip(id){
-  var trip=trips[id];if(!trip){alert('Trip not found.');return;}
-  if(trip.status==='draft'){if(!confirm('This trip is still a DRAFT. Publish anyway?'))return;}
-  var token=localStorage.getItem('gh_token');
-  if(!token){alert('Add your GitHub token in Settings first.');openSettings();return;}
-  var owner=localStorage.getItem('gh_owner')||'jessicahz10-hash';
-  var repo=localStorage.getItem('gh_repo')||'liaisonstravel';
-  var folder=localStorage.getItem('gh_folder')||'trips';
-  var customDomain=localStorage.getItem('gh_domain')||'trips.liaisonstravel.com';
-  var code=trip.code||'trip';
-  var filename=folder+'/'+code+'.html';
-  var html=buildTravelerHTML(trip);
-  var b64=btoa(unescape(encodeURIComponent(html)));
-  var apiUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/'+filename;
-  setSyncStatus('Publishing...');
-  fetch(apiUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github.v3+json'}})
-  .then(function(r){return r.ok?r.json():null;})
-  .then(function(existing){var body={message:'Publish trip: '+(trip.name||code),content:b64};if(existing&&existing.sha)body.sha=existing.sha;return fetch(apiUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},body:JSON.stringify(body)});})
-  .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error(t);});return r.json();})
-  .then(function(){
-    var clientLink='https://'+customDomain+'/trips/'+code+'.html';
-    setSyncStatus('Published!');setTimeout(function(){setSyncStatus('');},3000);
-    if(navigator.clipboard){navigator.clipboard.writeText(clientLink).then(function(){alert('✅ Published! Client link copied:\n\n'+clientLink);});}
-    else{prompt('Published! Link:',clientLink);}
-  })
-  .catch(function(e){setSyncStatus('Publish failed');console.error(e);alert('Publish failed: '+e.message);});
-}
-
-function loadSettings(){
-  var el;
-  el=document.getElementById('anthropicKey');if(el)el.value=localStorage.getItem('anthropic_key')||'';
-  el=document.getElementById('ghToken');if(el)el.value=localStorage.getItem('gh_token')||'';
-  el=document.getElementById('ghOwner');if(el)el.value=localStorage.getItem('gh_owner')||'jessicahz10-hash';
-  el=document.getElementById('ghRepo');if(el)el.value=localStorage.getItem('gh_repo')||'liaisonstravel';
-  el=document.getElementById('ghFolder');if(el)el.value=localStorage.getItem('gh_folder')||'trips';
-  el=document.getElementById('ghDomain');if(el)el.value=localStorage.getItem('gh_domain')||'trips.liaisonstravel.com';
-}
-
-function saveSettings(){
-  var ak=document.getElementById('anthropicKey');if(ak)localStorage.setItem('anthropic_key',ak.value.trim());
-  localStorage.setItem('gh_token',document.getElementById('ghToken').value.trim());
-  localStorage.setItem('gh_owner',document.getElementById('ghOwner').value.trim());
-  localStorage.setItem('gh_repo',document.getElementById('ghRepo').value.trim());
-  localStorage.setItem('gh_folder',document.getElementById('ghFolder').value.trim());
-  localStorage.setItem('gh_domain',document.getElementById('ghDomain').value.trim());
-  var st=document.getElementById('settingsSaveStatus');if(st){st.textContent='Saved!';setTimeout(function(){st.textContent='';},2000);}
-}
-
-function openSettings(){loadSettings();document.getElementById('settingsModal').classList.add('open');}
-
 function wireButtons(){
-  document.getElementById('logoutBtn').addEventListener('click',signOut);
   document.getElementById('settingsBtn').addEventListener('click',openSettings);
-  document.getElementById('settingsCloseBtn').addEventListener('click',function(){document.getElementById('settingsModal').classList.remove('open');});
-  document.getElementById('settingsSaveBtn').addEventListener('click',saveSettings);
-  document.getElementById('refreshBtn').addEventListener('click',loadAll);
+  document.getElementById('logoutBtn').addEventListener('click',signOut);
+  document.getElementById('refreshBtn').addEventListener('click',loadTrips);
   document.getElementById('edCloseBtn').addEventListener('click',closeEditor);
   document.getElementById('edCancelBtn').addEventListener('click',closeEditor);
   document.getElementById('edDeleteBtn').addEventListener('click',deleteTrip);
   document.getElementById('saveTripBtn').addEventListener('click',saveTrip);
-  document.getElementById('opEdCloseBtn').addEventListener('click',closeOpEditor);
-  document.getElementById('opEdCancelBtn').addEventListener('click',closeOpEditor);
-  document.getElementById('opEdDeleteBtn').addEventListener('click',deleteOnePager);
-  document.getElementById('saveOpBtn').addEventListener('click',saveOnePager);
-  document.getElementById('addBulletBtn').addEventListener('click',function(){opBullets.push('');renderOpBullets();});
   document.getElementById('closeMobileBtn').addEventListener('click',function(){document.getElementById('prevOverlay').classList.remove('open');document.getElementById('prevFrame').srcdoc='';});
   document.getElementById('closeDeskBtn').addEventListener('click',function(){document.getElementById('deskOverlay').classList.remove('open');document.getElementById('deskFrame').srcdoc='';});
   document.getElementById('tvBackBtn').addEventListener('click',function(){document.getElementById('sTraveler').style.display='none';});
-  var pdfEl=document.getElementById('pdfInput');if(pdfEl)pdfEl.addEventListener('change',function(e){if(e.target.files[0])handlePDF(e.target.files[0]);});
-  document.getElementById('addDayBtn').addEventListener('click',function(){eDays.push({title:'',date:'',activities:[]});renderDays();var dbs=document.querySelectorAll('.dib');if(dbs.length)dbs[dbs.length-1].classList.add('open');markDirty();});
-  document.getElementById('addPackBtn').addEventListener('click',function(){ePack.push({label:'',category:''});renderPack();markDirty();});
-  document.getElementById('addInfoBtn').addEventListener('click',function(){eInfo.push({title:'',content:''});renderInfo();markDirty();});
+  document.getElementById('pasteBtn').addEventListener('click',function(){document.getElementById('pasteArea').style.display='block';});
+  document.getElementById('cancelPasteBtn').addEventListener('click',function(){document.getElementById('pasteArea').style.display='none';});
+  document.getElementById('genBtn').addEventListener('click',runAIText);
+  document.getElementById('addDayBtn').addEventListener('click',function(){eDays.push({title:'',date:'',activities:[]});renderDays();var dbs=document.querySelectorAll('.dib');if(dbs.length)dbs[dbs.length-1].classList.add('open');});
+  document.getElementById('addPackBtn').addEventListener('click',function(){ePack.push({label:'',category:''});renderPack();});
+  document.getElementById('addInfoBtn').addEventListener('click',function(){eInfo.push({title:'',content:''});renderInfo();});
   document.getElementById('addDocUpBtn').addEventListener('click',addDocUpload);
-  document.getElementById('addDocLinkBtn').addEventListener('click',function(){eDocs.push({type:'link',label:'',url:''});renderDocs();markDirty();});
+  document.getElementById('addDocLinkBtn').addEventListener('click',function(){eDocs.push({type:'link',label:'',url:''});renderDocs();});
+  document.getElementById('addCityBtn').addEventListener('click',function(){eCity.push({name:'',imgData:null,tips:''});renderCity();});
+  document.getElementById('copyLinkBtn').addEventListener('click',function(){var l=document.getElementById('shareLink');l.select();document.execCommand('copy');alert('Copied!');});
   document.getElementById('instNoBtn').addEventListener('click',function(){document.getElementById('instBanner').classList.remove('show');});
-  document.getElementById('instYesBtn').addEventListener('click',function(){if(deferredPrompt){deferredPrompt.prompt();}else{alert('iOS: Tap Share then "Add to Home Screen"');}});
+  document.getElementById('instYesBtn').addEventListener('click',function(){if(deferredPrompt){deferredPrompt.prompt();}else{alert('iOS: Share then Add to Home Screen');}});
   document.getElementById('editorTabs').addEventListener('click',function(e){var tab=e.target.closest('.ftab');if(tab)switchTab(tab.getAttribute('data-tab'));});
-  // View tabs
-  document.getElementById('tabTrips').addEventListener('click',function(){
-    currentView='trips';
-    document.getElementById('tabTrips').classList.add('active');document.getElementById('tabOnePagers').classList.remove('active');
-    document.getElementById('tripsView').style.display='block';document.getElementById('onePagersView').style.display='none';
-  });
-  document.getElementById('tabOnePagers').addEventListener('click',function(){
-    currentView='onepagers';
-    document.getElementById('tabOnePagers').classList.add('active');document.getElementById('tabTrips').classList.remove('active');
-    document.getElementById('onePagersView').style.display='block';document.getElementById('tripsView').style.display='none';
-  });
   if(currentAccount)document.getElementById('userLabel').textContent=currentAccount.name||currentAccount.username;
-  var colorPicker=document.getElementById('fBrandColor');
-  if(colorPicker){colorPicker.addEventListener('input',function(){eBrandColor=this.value;markDirty();});colorPicker.addEventListener('change',function(){eBrandColor=this.value;markDirty();});}
-  ['fName','fCode','fDest','fDates','fStatus','fPM','fClient','fWelcome','fPhone','fBoxStyle','fBoxOpacity'].forEach(function(id){
-    var el=document.getElementById(id);if(el){el.addEventListener('input',markDirty);el.addEventListener('change',markDirty);}
-  });
 }
 
-// Public trip loading
-(function(){
-  var h=window.location.hash;
-  if(h.indexOf('#trip/')===0){
-    var code=h.replace('#trip/','').toLowerCase();
-    document.getElementById('sLogin').style.display='none';
-    var shell=document.getElementById('appShell');shell.style.display='block';
-    shell.innerHTML='<div id="tripLoading" style="position:fixed;inset:0;background:#fff;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">'+
-      '<img src="'+LOGO_URL+'" style="height:24px;width:auto" alt="LIAISONS TRAVEL"/>'+
-      '<p style="font-size:10px;letter-spacing:.2em;color:#B0B0B0;text-transform:uppercase" id="loadMsg">Loading your trip...</p></div>'+
-      getTravelerHTML()+getPreviewHTML();
-    document.getElementById('tvBackBtn').addEventListener('click',function(){window.location.hash='';document.getElementById('sTraveler').style.display='none';});
-    loadMSALpublic(code);return;
-  }
-  document.getElementById('msLoginBtn').addEventListener('click',signIn);
-  loadMSAL();
-})();
-
-function loadMSALpublic(code){
-  var s=document.createElement('script');s.src='https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js';s.crossOrigin='anonymous';
-  s.onload=function(){
-    var config={auth:{clientId:SP_CLIENT_ID,authority:'https://login.microsoftonline.com/'+SP_TENANT,redirectUri:REDIRECT_URI},cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:true}};
-    msalInstance=new msal.PublicClientApplication(config);
-    msalInstance.handleRedirectPromise().then(function(r){
-      if(r){spToken=r.accessToken;fetchPublicTrip(code);}
-      else{var accts=msalInstance.getAllAccounts();if(accts.length>0){currentAccount=accts[0];getToken().then(function(){fetchPublicTrip(code);}).catch(function(){fetchPublicTrip(code);});}else{fetchPublicTrip(code);}}
-    }).catch(function(){fetchPublicTrip(code);});
-  };
-  s.onerror=function(){fetchPublicTrip(code);};document.head.appendChild(s);
-}
-
-function fetchPublicTrip(code){
-  var msg=document.getElementById('loadMsg');
-  var url=LIST_URL+'/items?$expand=fields($select=Title,TripCode,TripData)&$top=500';
-  var hdrs={'Content-Type':'application/json'};if(spToken)hdrs['Authorization']='Bearer '+spToken;
-  fetch(url,{headers:hdrs}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-  .then(function(data){
-    var items=data.value||[];
-    for(var i=0;i<items.length;i++){try{var t=JSON.parse(items[i].fields.TripData||'{}');if(t.code&&t.code.toLowerCase()===code){var loading=document.getElementById('tripLoading');if(loading)loading.style.display='none';renderTV(t);document.getElementById('sTraveler').style.display='block';return;}}catch(e){}}
-    if(msg)msg.textContent='Trip not found.';
-  }).catch(function(e){console.error(e);if(msg)msg.textContent='Could not load trip.';});
-}
+// START - load MSAL after login screen renders
+document.getElementById('msLoginBtn').addEventListener('click',signIn);
+loadMSAL();
 </script>
 </body>
 </html>
